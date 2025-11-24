@@ -1,8 +1,8 @@
 package com.unyaunya.minic.frontend;
 
+import lombok.Value;
+
+@Value
 public class LvVar implements LValue {
-    public final String name;
-    public LvVar(String name) {
-        this.name = name;
-    }
+    String name;
 }

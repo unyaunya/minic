@@ -2,7 +2,10 @@ package com.unyaunya.minic.frontend;
 
 import java.util.*;
 
+import lombok.Value;
+
+@Value
 public class Program implements Node {
-    public final List<GlobalDecl> globals = new ArrayList<>();    
-    public final List<FunctionDecl> functions = new ArrayList<>();
+    List<GlobalDecl> globals = new ArrayList<>();    
+    List<FunctionDecl> functions = new ArrayList<>();
 }

@@ -17,10 +17,10 @@ public class AstBuilder extends MiniCBaseVisitor<Node> {
     public Node visitProgram(MiniCParser.ProgramContext ctx) {
         Program p = new Program();
         for (MiniCParser.FunctionDeclContext f : ctx.functionDecl()) {
-            p.functions.add((FunctionDecl) visit(f));
+            p.getFunctions().add((FunctionDecl) visit(f));
         }
         for (MiniCParser.GlobalDeclContext g : ctx.globalDecl()) {
-            p.globals.add((GlobalDecl) visit(g));
+            p.getGlobals().add((GlobalDecl) visit(g));
         }
         return p;
     }
@@ -91,7 +91,7 @@ public class AstBuilder extends MiniCBaseVisitor<Node> {
     public Block visitBlock(MiniCParser.BlockContext b) {
         Block block = new Block();
         for (MiniCParser.StatementContext s : b.statement()) {
-            block.statements.add((Stmt) visit(s));
+            block.getStatements().add((Stmt) visit(s));
         }
         return block;
     }
@@ -114,7 +114,7 @@ public class AstBuilder extends MiniCBaseVisitor<Node> {
             return (Block) visitBlock(ctx.block());
         } else {
             Block block = new Block();
-            block.statements.add((Stmt) visitStatement(ctx));
+            block.getStatements().add((Stmt) visitStatement(ctx));
             return block;
         }
     }
@@ -125,7 +125,7 @@ public class AstBuilder extends MiniCBaseVisitor<Node> {
         TypeSpec type = toTypeSpec(ctx.typeSpec());
         // If you want local arrays encoded in TypeSpec, you can read ctx.arraySize() here and update TypeSpec accordingly.
         Expr init = (ctx.expr() == null) ? null : (Expr) visit(ctx.expr());
-        return new VarDecl(name, type, init);
+        return new VarDecl(type, name, init);
     }
 
     @Override

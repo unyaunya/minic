@@ -1,11 +1,9 @@
 package com.unyaunya.minic.frontend;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Value;
 
-@AllArgsConstructor
-@Data
+@Value
 public class LvArrayElem implements LValue {
-    private String name;
-    private Expr expr;
+    String name;
+    Expr expr;
 }
