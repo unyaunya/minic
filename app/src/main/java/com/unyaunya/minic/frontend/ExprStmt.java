@@ -5,7 +5,6 @@ import lombok.Getter;
 
 @AllArgsConstructor
 @Getter
-public class Param implements Node {
-    private final TypeSpec type;
-    private final String name;
+public class ExprStmt implements Stmt {
+    private final Expr expr;    
 }

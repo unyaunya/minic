@@ -3,6 +3,8 @@
  */
 package com.unyaunya.minic;
 
+import java.io.IOException;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.logging.Logger;
 
@@ -10,10 +12,13 @@ import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 
+import com.unyaunya.minic.backend.Casl2Emitter;
 import com.unyaunya.minic.frontend.AstBuilder;
+import com.unyaunya.minic.frontend.Program;
 import com.unyaunya.minic.parser.MiniCLexer;
 import com.unyaunya.minic.parser.MiniCParser;
 import com.unyaunya.minic.parser.MiniCParser.ProgramContext;
+import com.unyaunya.minic.semantics.SemanticAnalyzer;
 
 public class CompilerMain {
     Logger logger = Logger.getLogger(getClass().getName());    
@@ -22,28 +27,35 @@ public class CompilerMain {
         return "Hello World!";
     }
 
-    public static void main(String[] args) {
-        if (args.length < 1) {
-            System.err.println("Usage: minic <source.mc>");
-            System.exit(1);
-        }
+    public static String compile(String path) throws IOException {
+        return compile(Paths.get(path));
+    }
 
-        CharStream input = CharStreams.fromPath(Paths.get(args[0]));
+    public static String compile(Path path) throws IOException {
+        CharStream input = CharStreams.fromPath(path);
         MiniCLexer lexer = new MiniCLexer(input);
         CommonTokenStream tokens = new CommonTokenStream(lexer);
+        tokens.fill();
         MiniCParser parser = new MiniCParser(tokens);
 
         ProgramContext tree = parser.program(); // entry rule
 
         AstBuilder builder = new AstBuilder();
-        Expr ast = (Expr) builder.visit(tree);
+        Program ast = (Program) builder.visit(tree);
 
         SemanticAnalyzer sema = new SemanticAnalyzer();
-        sema.check(ast); // throws on error
+        sema.analyze(ast); // throws on error
 
         Casl2Emitter emitter = new Casl2Emitter();
-        String asm = emitter.emit(ast);
+        return emitter.emit(ast);
+    }
 
+    public static void main(String[] args) throws IOException {
+        if (args.length < 1) {
+            System.err.println("Usage: minic <source.mc>");
+            System.exit(1);
+        }
+        String asm = CompilerMain.compile(args[0]);
         System.out.println(asm);
     }
 }

@@ -21,14 +21,13 @@ repositories {
 }
 
 dependencies {
-    antlr 'org.antlr:antlr4:4.13.1'
-    implementation 'org.antlr:antlr4-runtime:4.13.1'
-    compileOnly 'org.projectlombok:lombok:1.18.34'
-    annotationProcessor 'org.projectlombok:lombok:1.18.34'
+    antlr libs.antlr
+    implementation libs.antlr.runtime
+    compileOnly libs.lombok
+    annotationProcessor libs.lombok
 
     // Use JUnit Jupiter for testing.
     testImplementation libs.junit.jupiter
-
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
     // This dependency is used by the application.
@@ -66,7 +65,11 @@ sourceSets {
     }
 }
 
-tasks.named('test') {
+//tasks.named('test') {
     // Use JUnit Platform for unit tests.
+//    useJUnitPlatform()
+//}
+
+test {
     useJUnitPlatform()
 }

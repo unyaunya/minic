@@ -2,7 +2,10 @@ package com.unyaunya.minic.frontend;
 
 import java.util.List;
 
+import lombok.Value;
+
+@Value
 public class Call implements Expr, Stmt {
-    public final String name; public final List<Expr> args;
-    public Call(String name, List<Expr> args) { this.name = name; this.args = args; }
+    String name;
+    List<Expr> args;
 }

@@ -4,7 +4,12 @@
 [versions]
 guava = "33.4.5-jre"
 junit-jupiter = "5.12.1"
+antlr = "4.13.1"
+lombok = "1.18.34"
 
 [libraries]
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit-jupiter" }
+antlr = { module = "org.antlr:antlr4", version.ref = "antlr" }
+antlr-runtime = { module = "org.antlr:antlr4-runtime", version.ref = "antlr" }
+lombok = { module = "org.projectlombok:lombok", version.ref = "lombok" }

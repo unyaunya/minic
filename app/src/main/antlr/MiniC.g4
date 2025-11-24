@@ -133,10 +133,10 @@ expr
 // ----------------------
 // Lexer rules
 // ----------------------
-IDENT : [a-zA-Z_][a-zA-Z_0-9]* ;
 INTEGER : [0-9]+ ;
 WS    : [ \t\r\n]+ -> skip ;
 VOID  : 'void' ;
 CHAR  : 'char' ;
 SHORT : 'short' ;
 INT   : 'int' ;
+IDENT : [a-zA-Z_][a-zA-Z_0-9]* ;

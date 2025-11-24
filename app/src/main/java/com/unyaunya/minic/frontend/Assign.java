@@ -1,11 +1,9 @@
 package com.unyaunya.minic.frontend;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
+import lombok.Value;
 
-@AllArgsConstructor
-@Getter
+@Value
 public class Assign implements Stmt {
-    private LValue lvalue;
-    private Expr expr;
+    LValue lvalue;
+    Expr expr;
 }
