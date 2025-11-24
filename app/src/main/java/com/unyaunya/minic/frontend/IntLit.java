@@ -1,5 +1,8 @@
 package com.unyaunya.minic.frontend;
 
+import lombok.Value;
+
+@Value
 public class IntLit implements Expr {
-    public final int value; public IntLit(int value) { this.value = value; }
+    int value;
 }

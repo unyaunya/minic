@@ -6,6 +6,6 @@ import java.util.List;
 import lombok.Value;
 
 @Value
-public class Block implements Node {
+public class Block implements Stmt {
     List<Stmt> statements = new ArrayList<>();    
 }
