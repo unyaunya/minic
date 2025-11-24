@@ -141,7 +141,7 @@ public class SemanticAnalyzer {
             if (sym.getType().getArraySize() == 0) {
                 error("Not an array: " + arr.getName());
             }
-            TypeSpec idxType = checkExpr(arr.getIndex());
+            TypeSpec idxType = checkExpr(arr.getExpr());
             if (idxType.getBaseType() != BaseType.INT) {
                 error("Array index must be int");
             }
