@@ -55,7 +55,7 @@ public class AstBuilder extends MiniCBaseVisitor<Node> {
         String name = ctx.IDENT().getText();
         TypeSpec type = toTypeSpec(ctx.typeSpec());
         ArraySizeContext asc = ctx.arraySize();
-        int arraySize = (asc == null) ? 0 : toInt(asc.INTEGER());
+        Integer arraySize = (asc == null) ? null : toInt(asc.INTEGER());
         return new GlobalDecl(type, name, arraySize);
     }
 

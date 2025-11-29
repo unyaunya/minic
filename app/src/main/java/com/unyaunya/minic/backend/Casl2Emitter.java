@@ -22,7 +22,7 @@ public class Casl2Emitter {
 
     private void emitGlobals(List<GlobalDecl> globals) {
         for (GlobalDecl g : globals) {
-            int size = (g.getArraySize() > 0) ? g.getArraySize() : 1;
+            int size = (g.getArraySize() != null) ? g.getArraySize() : 1;
             builder.ds(size).l(g.getName());
         }
     }
