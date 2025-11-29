@@ -4,6 +4,7 @@
 package com.unyaunya.minic;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.logging.Logger;
 
@@ -26,15 +27,15 @@ public class CompilerMain {
         return "Hello World!";
     }
 
-    public static void main(String[] args) throws IOException {
-        if (args.length < 1) {
-            System.err.println("Usage: minic <source.mc>");
-            System.exit(1);
-        }
+    public static String compile(String path) throws IOException {
+        return compile(Paths.get(path));
+    }
 
-        CharStream input = CharStreams.fromPath(Paths.get(args[0]));
+    public static String compile(Path path) throws IOException {
+        CharStream input = CharStreams.fromPath(path);
         MiniCLexer lexer = new MiniCLexer(input);
         CommonTokenStream tokens = new CommonTokenStream(lexer);
+        tokens.fill();
         MiniCParser parser = new MiniCParser(tokens);
 
         ProgramContext tree = parser.program(); // entry rule
@@ -46,8 +47,15 @@ public class CompilerMain {
         sema.analyze(ast); // throws on error
 
         Casl2Emitter emitter = new Casl2Emitter();
-        String asm = emitter.emit(ast);
+        return emitter.emit(ast);
+    }
 
+    public static void main(String[] args) throws IOException {
+        if (args.length < 1) {
+            System.err.println("Usage: minic <source.mc>");
+            System.exit(1);
+        }
+        String asm = CompilerMain.compile(args[0]);
         System.out.println(asm);
     }
 }

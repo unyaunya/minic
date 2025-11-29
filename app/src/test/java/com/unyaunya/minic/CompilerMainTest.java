@@ -6,9 +6,25 @@ package com.unyaunya.minic;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.io.IOException;
+import java.net.URISyntaxException;
+import java.nio.file.Path;
+
 class CompilerMainTest {
-    @Test void appHasAGreeting() {
-        CompilerMain classUnderTest = new CompilerMain();
-        assertNotNull(classUnderTest.getGreeting(), "app should have a greeting");
+    @Test
+    void compileTest() throws IOException, URISyntaxException {
+        Path path = getPath("test1.mc");
+        String asm = CompilerMain.compile(path);
+        System.out.print(asm);
+        assertEquals("""
+            START
+            END
+                """, asm);
     }
+
+    Path getPath(String path) throws URISyntaxException {
+        return Path.of(getClass().getClassLoader().getResource(path).toURI());
+    }   
+
+
 }
