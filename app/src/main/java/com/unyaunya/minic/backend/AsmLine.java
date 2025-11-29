@@ -4,11 +4,14 @@ package com.unyaunya.minic.backend;
 import java.util.Collections;
 import java.util.List;
 
+import lombok.Getter;
+
+@Getter
 class AsmLine {
-    private final String label;    // up to 8 chars
-    private final String opcode;   // CASL2 mnemonic
-    private final List<String> operands; // 0, 1, or 2 operands
-    private final String comment;
+    private String label;    // up to 8 chars
+    private String opcode;   // CASL2 mnemonic
+    private List<String> operands; // 0, 1, or 2 operands
+    private String comment;
 
     AsmLine(String opcode, List<String> operands, String comment) {
         this(null, opcode, operands, comment);
@@ -27,10 +30,19 @@ class AsmLine {
     }
 
     AsmLine(String label, String opcode, List<String> operands, String comment) {
+        this.setLabel(label);
         this.label = (label != null && label.length() > 8) ? label.substring(0, 8) : label;
         this.opcode = opcode != null ? opcode : "";
         this.operands = operands != null ? operands : Collections.emptyList();
-        this.comment = comment;
+        this.setComment(comment);
+    }
+
+    public void setLabel(String label) {
+        this.label = (label != null && label.length() > 8) ? label.substring(0, 8) : label;
+    }
+
+    public void setComment(String comment) {
+        this.comment = (comment != null && comment.length() > 24) ? comment.substring(0, 24) : comment;
     }
 
     @Override

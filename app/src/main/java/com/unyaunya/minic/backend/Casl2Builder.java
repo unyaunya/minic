@@ -7,97 +7,80 @@ import java.util.List;
 public class Casl2Builder {
     private final List<AsmLine> lines = new ArrayList<>();
 
-    private Casl2Builder addLine(String label, String opcode, List<String> operands, String comment) {
-        lines.add(new AsmLine(label, opcode, operands, comment));
+    private Casl2Builder addLine(String opcode, List<String> operands) {
+        lines.add(new AsmLine(null, opcode, operands, null));
         return this;
     }
 
     // -------------------------------
     // Assembler Instructions
     // -------------------------------
-    public Casl2Builder start(String address) {
-        return addLine(null, "START", List.of(address), null);
-    }
-
-    public Casl2Builder start(String address, String label, String comment) {
-        return addLine(label, "START", List.of(address), comment);
-    }
-
-    public Casl2Builder end() {
-        return addLine(null, "END", List.of(), null);
-    }
-
-    public Casl2Builder end(String label, String comment) {
-        return addLine(label, "END", List.of(), comment);
-    }
-
-    public Casl2Builder ds(String label, int size) {
-        return addLine(label, "DS", List.of(String.valueOf(size)), null);
-    }
-
-    public Casl2Builder ds(String label, int size, String comment) {
-        return addLine(label, "DS", List.of(String.valueOf(size)), comment);
-    }
-
-    public Casl2Builder dc(String label, String value) {
-        return addLine(label, "DC", List.of(value), null);
-    }
-
-    public Casl2Builder dc(String label, String value, String comment) {
-        return addLine(label, "DC", List.of(value), comment);
-    }
+    public Casl2Builder start(String address) { return addLine("START", List.of(address)); }
+    public Casl2Builder end() { return addLine("END", List.of()); }
+    public Casl2Builder ds(int size) { return addLine("DS", List.of(String.valueOf(size))); }
+    public Casl2Builder dc(String value) { return addLine("DC", List.of(value)); }
+    public Casl2Builder comment(String text) { lines.add(new AsmLine(null, null, null, text)); return this; }
 
     // -------------------------------
-    // Machine Instructions (example subset)
+    // Machine Instructions
     // -------------------------------
-    public Casl2Builder lad(String reg, String value) {
-        return addLine(null, "LAD", List.of(reg, value), null);
-    }
-
-    public Casl2Builder lad(String reg, String value, String label, String comment) {
-        return addLine(label, "LAD", List.of(reg, value), comment);
-    }
-
-    public Casl2Builder ld(String reg, String addr) {
-        return addLine(null, "LD", List.of(reg, addr), null);
-    }
-
-    public Casl2Builder ld(String reg, String addr, String label, String comment) {
-        return addLine(label, "LD", List.of(reg, addr), comment);
-    }
-
-    public Casl2Builder adda(String reg1, String reg2) {
-        return addLine(null, "ADDA", List.of(reg1, reg2), null);
-    }
-
-    public Casl2Builder adda(String reg1, String reg2, String label, String comment) {
-        return addLine(label, "ADDA", List.of(reg1, reg2), comment);
-    }
+    public Casl2Builder ld(String reg, String addr) { return addLine("LD", List.of(reg, addr)); }
+    public Casl2Builder lad(String reg, String value) { return addLine("LAD", List.of(reg, value)); }
+    public Casl2Builder st(String reg, String addr) { return addLine("ST", List.of(reg, addr)); }
+    public Casl2Builder adda(String r1, String r2) { return addLine("ADDA", List.of(r1, r2)); }
+    public Casl2Builder addl(String r1, String r2) { return addLine("ADDL", List.of(r1, r2)); }
+    public Casl2Builder suba(String r1, String r2) { return addLine("SUBA", List.of(r1, r2)); }
+    public Casl2Builder subl(String r1, String r2) { return addLine("SUBL", List.of(r1, r2)); }
+    public Casl2Builder and(String r1, String r2) { return addLine("AND", List.of(r1, r2)); }
+    public Casl2Builder or(String r1, String r2) { return addLine("OR", List.of(r1, r2)); }
+    public Casl2Builder xor(String r1, String r2) { return addLine("XOR", List.of(r1, r2)); }
+    public Casl2Builder cpa(String r1, String r2) { return addLine("CPA", List.of(r1, r2)); }
+    public Casl2Builder cpl(String r1, String r2) { return addLine("CPL", List.of(r1, r2)); }
+    public Casl2Builder sla(String r, String count) { return addLine("SLA", List.of(r, count)); }
+    public Casl2Builder sll(String r, String count) { return addLine("SLL", List.of(r, count)); }
+    public Casl2Builder sra(String r, String count) { return addLine("SRA", List.of(r, count)); }
+    public Casl2Builder srl(String r, String count) { return addLine("SRL", List.of(r, count)); }
+    public Casl2Builder jov(String label) { return addLine("JOV", List.of(label)); }
+    public Casl2Builder jpl(String label) { return addLine("JPL", List.of(label)); }
+    public Casl2Builder jmi(String label) { return addLine("JMI", List.of(label)); }
+    public Casl2Builder jze(String label) { return addLine("JZE", List.of(label)); }
+    public Casl2Builder jnz(String label) { return addLine("JNZ", List.of(label)); }
+    public Casl2Builder jump(String label) { return addLine("JUMP", List.of(label)); }
+    public Casl2Builder push(String reg) { return addLine("PUSH", List.of(reg)); }
+    public Casl2Builder pop(String reg) { return addLine("POP", List.of(reg)); }
+    public Casl2Builder call(String label) { return addLine("CALL", List.of(label)); }
+    public Casl2Builder ret() { return addLine("RET", List.of()); }
+    public Casl2Builder svc(String code) { return addLine("SVC", List.of(code)); }
+    public Casl2Builder nop() { return addLine("NOP", List.of()); }
 
     // -------------------------------
     // Macro Instructions
     // -------------------------------
-    public Casl2Builder in(String device) {
-        return addLine(null, "IN", List.of(device), null);
-    }
-
-    public Casl2Builder in(String device, String label, String comment) {
-        return addLine(label, "IN", List.of(device), comment);
-    }
-
-    public Casl2Builder out(String device) {
-        return addLine(null, "OUT", List.of(device), null);
-    }
-
-    public Casl2Builder out(String device, String label, String comment) {
-        return addLine(label, "OUT", List.of(device), comment);
-    }
+    public Casl2Builder in(String device, String len) { return addLine("IN", List.of(device, len)); }
+    public Casl2Builder out(String device, String len) { return addLine("OUT", List.of(device, len)); }
+    public Casl2Builder rpush() { return addLine("RPUSH", List.of()); }
+    public Casl2Builder rpop() { return addLine("RPOP", List.of()); }
 
     // -------------------------------
     // Utility
     // -------------------------------
-    public Casl2Builder comment(String text) {
-        return addLine(null, null, List.of(), text);
+
+    // Add Label
+    public Casl2Builder l(String lbl) {
+        if (!lines.isEmpty()) {
+            AsmLine last = lines.get(lines.size() - 1);
+            last.setLabel(lbl);
+        }
+        return this;
+    }
+
+    // Add Comment
+    public Casl2Builder c(String text) {
+        if (!lines.isEmpty()) {
+            AsmLine last = lines.get(lines.size() - 1);
+            last.setComment(text);
+        }
+        return this;
     }
 
     public String build() {
