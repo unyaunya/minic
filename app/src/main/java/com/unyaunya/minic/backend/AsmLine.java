@@ -14,6 +14,10 @@ class AsmLine {
         this(null, opcode, operands, comment);
     }
 
+    AsmLine(String label, String opcode, List<String> operands) {
+        this(label, opcode, operands, null);
+    }
+
     AsmLine(String opcode, List<String> operands) {
         this(null, opcode, operands, null);
     }
