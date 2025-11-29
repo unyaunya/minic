@@ -6,5 +6,4 @@ import lombok.Value;
 public class GlobalDecl implements Node {
     TypeSpec type;
     String name;
-    Integer arraySize; // null if not array
 }

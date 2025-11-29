@@ -5,11 +5,10 @@ import lombok.Getter;
 
 @AllArgsConstructor
 @Getter
-public class WhileStmt implements Stmt {
-    private final Expr cond;
-    private final Block body;
+public class MacroStmt implements Stmt {
+    private final String op;    
 
     public String toString() {
-        return String.format("while(%s)", cond.toString());
+        return String.format("%s()", op);
     }
 }

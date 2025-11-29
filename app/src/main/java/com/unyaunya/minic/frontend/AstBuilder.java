@@ -36,11 +36,14 @@ public class AstBuilder extends MiniCBaseVisitor<Node> {
         throw new IllegalArgumentException("Unknown base type: " + t.getText());
     }
 
-    private TypeSpec toTypeSpec(MiniCParser.TypeSpecContext t) {
+    private TypeSpec toTypeSpec(MiniCParser.TypeSpecContext t, Integer arraySize) {
         BaseType baseType = toBaseType(t.baseType());
         int pointerDepth = (t.pointer() == null) ? 0 : t.pointer().getText().length(); // single '*' for now
-        int arraySize = 0; // locals/globals can carry array via separate field (GlobalDecl), keep 0 here unless you encode it in TypeSpec
         return new TypeSpec(baseType, pointerDepth, arraySize);
+    }
+
+    private TypeSpec toTypeSpec(MiniCParser.TypeSpecContext t) {
+        return toTypeSpec(t, null);
     }
 
     private int toInt(TerminalNode n) {
@@ -53,10 +56,10 @@ public class AstBuilder extends MiniCBaseVisitor<Node> {
     @Override
     public Node visitGlobalDecl(MiniCParser.GlobalDeclContext ctx) {
         String name = ctx.IDENT().getText();
-        TypeSpec type = toTypeSpec(ctx.typeSpec());
         ArraySizeContext asc = ctx.arraySize();
-        int arraySize = (asc == null) ? 0 : toInt(asc.INTEGER());
-        return new GlobalDecl(type, name, arraySize);
+        Integer arraySize = (asc == null) ? null : toInt(asc.INTEGER());
+        TypeSpec type = toTypeSpec(ctx.typeSpec(), arraySize);
+        return new GlobalDecl(type, name);
     }
 
     // ----------------------
@@ -105,13 +108,14 @@ public class AstBuilder extends MiniCBaseVisitor<Node> {
         if (ctx.forStmt() != null)    return visit(ctx.forStmt());
         if (ctx.block() != null)      return visit(ctx.block());
         if (ctx.returnStmt() != null) return visit(ctx.returnStmt());
+        if (ctx.macroStmt() != null)  return visit(ctx.macroStmt());
         if (ctx.expr() != null)       return new ExprStmt((Expr) visit(ctx.expr()));
         throw new IllegalStateException("Unknown statement alternative: " + ctx.getText());
     }
 
     private Block toBlock(MiniCParser.StatementContext ctx) {
         if (ctx.block() != null) {
-            return (Block) visitBlock(ctx.block());
+            return visitBlock(ctx.block());
         } else {
             Block block = new Block();
             block.getStatements().add((Stmt) visitStatement(ctx));
@@ -122,7 +126,9 @@ public class AstBuilder extends MiniCBaseVisitor<Node> {
     @Override
     public Node visitVarDecl(MiniCParser.VarDeclContext ctx) {
         String name = ctx.IDENT().getText();
-        TypeSpec type = toTypeSpec(ctx.typeSpec());
+        ArraySizeContext asc = ctx.arraySize();
+        Integer arraySize = (asc == null) ? null : toInt(asc.INTEGER());
+        TypeSpec type = toTypeSpec(ctx.typeSpec(), arraySize);
         // If you want local arrays encoded in TypeSpec, you can read ctx.arraySize() here and update TypeSpec accordingly.
         Expr init = (ctx.expr() == null) ? null : (Expr) visit(ctx.expr());
         return new VarDecl(type, name, init);
@@ -176,6 +182,12 @@ public class AstBuilder extends MiniCBaseVisitor<Node> {
     public Node visitForUpdate(MiniCParser.ForUpdateContext ctx) {
         return visit(ctx.assignment());
     }
+
+    @Override
+    public Node visitMacroStmt(MiniCParser.MacroStmtContext ctx) {
+        return new MacroStmt(ctx.MACRO().getText());
+    }
+
 
     // ----------------------
     // LValues

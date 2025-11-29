@@ -37,21 +37,22 @@ block
     ;
 
 statement
-    : varDecl
-    | assignment
+    : varDecl ';'
+    | assignment ';'
     | expr ';'          // 関数呼び出しや式文
     | ifStmt
     | whileStmt
     | forStmt
     | block
     | returnStmt
+    | macroStmt
     ;
 
 // ----------------------
 // Declarations
 // ----------------------
 varDecl
-    : typeSpec IDENT arraySize? ('=' expr)? ';'
+    : typeSpec IDENT arraySize? ('=' expr)?
     ;
 
 typeSpec
@@ -77,7 +78,7 @@ arraySize
 // Assignments
 // ----------------------
 assignment
-    : lvalue '=' expr ';'
+    : lvalue '=' expr
     ;
 
 lvalue
@@ -113,6 +114,15 @@ forUpdate
 returnStmt
     : 'return' expr? ';'
     ;
+
+// ----------------------
+// Macro of CASL2
+// ----------------------
+macroStmt
+    : MACRO '(' ')' ';'
+    ;
+
+
 // ----------------------
 // Expressions
 // ----------------------
@@ -128,6 +138,8 @@ expr
     | IDENT '(' (expr (',' expr)*)? ')'  #funcCall
     | IDENT                              #varRef
     | INTEGER                            #intLit
+    | STRING                             #stringLit
+    | CHARACTER                          #characterLit
     ;
 
 // ----------------------
@@ -135,8 +147,26 @@ expr
 // ----------------------
 INTEGER : [0-9]+ ;
 WS    : [ \t\r\n]+ -> skip ;
+INE_COMMENT
+    : '//' ~[\r\n]* -> skip
+    ;
+BLOCK_COMMENT
+    : '/*' .*? '*/' -> skip
+    ;
 VOID  : 'void' ;
 CHAR  : 'char' ;
 SHORT : 'short' ;
 INT   : 'int' ;
-IDENT : [a-zA-Z_][a-zA-Z_0-9]* ;
+IDENT : [a-zA-Z][a-zA-Z0-9]* ;
+STRING
+    : '"' ( ~["\\\r\n] | '\\' . )* '"'
+    ;
+CHARACTER
+    : '\'' ( ~['\\\r\n] | '\\' . ) '\''
+    ;
+
+
+// ----------------------
+// Lexer rules (for Macro)
+// ----------------------
+MACRO  : [_][a-zA-Z][a-zA-Z0-9]* ;

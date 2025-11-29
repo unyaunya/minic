@@ -1,49 +1,95 @@
 
 package com.unyaunya.minic.backend;
 
+import static com.unyaunya.minic.backend.Casl2Builder.*;
+
+import com.unyaunya.minic.MinicException;
 import com.unyaunya.minic.frontend.*;
+import com.unyaunya.minic.semantics.SemanticInfo;
+import com.unyaunya.minic.semantics.StorageClass;
+import com.unyaunya.minic.semantics.Symbol;
+
 import java.util.*;
 
 public class Casl2Emitter {
-    private final StringBuilder asm = new StringBuilder();
-    private int labelCount = 0;
+    private final Casl2Builder builder = new Casl2Builder();
+    private SemanticInfo semanticInfo;
+    private FunctionDecl currentFunction;
+    private Casl2LabelGenerator lgCompareTrue = new Casl2LabelGenerator("CT", "True branch of a comparison");
+    private Casl2LabelGenerator lgCompareEnd = new Casl2LabelGenerator("CE", "End label of a comparison");
+    private Casl2LabelGenerator lgIfElse = new Casl2LabelGenerator("IFELS", "Else clause");
+    private Casl2LabelGenerator lgIfEnd = new Casl2LabelGenerator("ENDIF", "End of if statement");
+    private Casl2LabelGenerator lgWhile = new Casl2LabelGenerator("WHIL", "While statement");
+    private Casl2LabelGenerator lgWend = new Casl2LabelGenerator("WEND", "End of while statement");
+    private Casl2LabelGenerator lgFor = new Casl2LabelGenerator("FOR", "For statement");
+    private Casl2LabelGenerator lgNext = new Casl2LabelGenerator("NXT", "End of while statement");
 
-    public String emit(Program program) {
-        emitHeader();
-        emitGlobals(program.getGlobals());
-        asm.append("LAD GR8,STACK\n"); // Initialize stack pointer
+    public String emit(Program program, SemanticInfo semanticInfo, int stackSize) {
+        this.semanticInfo = semanticInfo;
+        builder.start().l("PRG").c("Program start");
+        builder.lad(GR1, stackSize);
+        builder.lad(GR7, "STACK", GR1).c("GR7 plays a role of ESP in x86");
+        builder.ld(GR6, GR7).c("GR7 plays a role of EBP in x86");
         for (FunctionDecl f : program.getFunctions()) {
             emitFunction(f);
         }
-        emitFooter();
-        return asm.toString();
-    }
-
-    private void emitHeader() {
-        asm.append("START\n");
-    }
-
-    private void emitFooter() {
-        asm.append("END\n");
-        asm.append("STACK DS 256\n"); // Reserve stack space
+        builder.comment("Data Section");
+        emitGlobals(program.getGlobals());
+        builder.ds(stackSize).l("STACK").c("Stack Ares");
+        builder.end().c("Program end");
+        return builder.build();
     }
 
     private void emitGlobals(List<GlobalDecl> globals) {
         for (GlobalDecl g : globals) {
-            int size = (g.getArraySize() > 0) ? g.getArraySize() : 1;
-            asm.append(g.getName()).append(" DS ").append(size).append("\n");
+            int size = (g.getType().getArraySize() != null) ? g.getType().getArraySize() : 1;
+            builder.ds(size).l(g.getName().toUpperCase());
         }
     }
 
     private void emitFunction(FunctionDecl f) {
-        asm.append(f.getName()).append("\n");
-        asm.append("; Prologue\n");
-        asm.append("PUSH 0,GR8\n"); // Save SP
-        asm.append("LAD GR8,0,GR8\n"); // Adjust SP if needed
+        this.currentFunction = f;
+        builder.comment(f.toString());
+        builder.suba(GR7, 1).l(f.getName().toUpperCase());
+        builder.st(GR6, "0", GR7).c("Like push ebp");
+        builder.ld(GR6, GR7).c("Like mov ebp, esp");
+        int localSize = this.semanticInfo.getLocalSize(f.getName());
+        if (localSize > 0) {
+            builder.suba(GR7, localSize).c("Secure local variables");
+        }
         emitBlock(f.getBody());
-        asm.append("; Epilogue\n");
-        asm.append("POP GR8\n");
-        asm.append("RET\n");
+        if (!builder.lastIsRet()) {
+            emitReturn();
+        }
+        this.currentFunction = null;
+    }
+
+    private void emitReturn() {
+        int localSize = this.semanticInfo.getLocalSize(this.currentFunction.getName());
+        if (localSize > 0) {
+            builder.adda(GR7, localSize);
+        }
+        builder.ld(GR7, GR6).c("Like mov esp, ebp");
+        builder.ld(GR6, "0", GR7).c("Like pop ebp");
+        builder.adda(GR7, 1);
+        builder.ret();
+    }
+
+    private void emitCall(Call c) {
+        // Push arguments in reverse order
+        for (Expr arg : c.getArgs().reversed()) {
+            emitExpr(arg); // result in GR1
+            builder.suba(GR7, 1).c("Decrement stack pointer");
+            builder.st(GR1, "0", GR7);
+        }
+        // Call function
+        builder.call(c.getName().toUpperCase());
+        // Release arguments
+        if (!c.getArgs().isEmpty()) {
+            builder.adda(GR7, c.getArgs().size());
+        }
+        // Move return value to GR1
+        builder.ld(GR1, GR0);
     }
 
     private void emitBlock(Block b) {
@@ -65,124 +111,193 @@ public class Casl2Emitter {
             emitFor(f);
         } else if (s instanceof ReturnStmt r) {
             emitReturn(r);
+        } else if (s instanceof MacroStmt m) {
+            emitMacro(m);
         } else if (s instanceof Block b) {
             emitBlock(b);
+        } else if (s instanceof VarDecl v) {
+            emitVarDecl(v);
+        } else {
+            throw new MinicException(String.format("Unimplemented: %s", s.toString()));
+        }
+    }
+
+    private void emitVarDecl(VarDecl v) {
+        builder.comment(v.toString());
+        if (v.getInit() != null) {
+            emitAssign(new LvVar(v.getName()), v.getInit());
         }
     }
 
     private void emitAssign(Assign a) {
-        emitExpr(a.getExpr());
-        if (a.getLvalue() instanceof LvVar lv) {
-            asm.append("ST GR1,").append(lv.getName()).append("\n");
-        } else if (a.getLvalue() instanceof LvArrayElem lv) {
+        builder.comment(a.toString());
+        emitAssign(a.getLvalue(), a.getExpr());
+    }
+
+    private void emitAssign(LValue lvalue, Expr expr) {
+        emitExpr(expr);
+        if (lvalue instanceof LvVar v) {
+            Symbol symbol = this.semanticInfo.getSymbol(this.currentFunction.getName(), v.getName());
+            String comment = String.format("Store %s", v.getName());
+            switch (symbol.getStorageClass()) {
+            case StorageClass.GLOBAL -> builder.st(GR1, v.getName().toUpperCase()).c(comment);
+            case StorageClass.LOCAL ->  builder.st(GR1, 65536 - symbol.getOffset(), GR6).c(comment);
+            case StorageClass.PARAM ->  builder.st(GR1, symbol.getOffset(), GR6).c(comment);
+            }
+        } else if (lvalue instanceof LvArrayElem lv) {
+            // evacuate the value to assign
+            builder.push("0", GR1);
+            // put the index of the array in GR1
             emitExpr(lv.getExpr());
-            asm.append("LAD GR2,").append(lv.getName()).append("\n");
-            asm.append("ADDA GR2,GR1\n");
-            asm.append("ST GR1,0,GR2\n");
+            // put the start address of the array in GR2
+            Symbol symbol = this.semanticInfo.getSymbol(this.currentFunction.getName(), lv.getName());
+            switch (symbol.getStorageClass()) {
+            case StorageClass.GLOBAL -> builder.lad(GR2, lv.getName().toUpperCase());
+            case StorageClass.LOCAL ->  builder.lad(GR2, 65536 - symbol.getOffset(), GR6);
+            case StorageClass.PARAM ->  builder.lad(GR2, symbol.getOffset(), GR6);
+            }
+            // put the address of the target element in GR2
+            builder.adda(GR2, GR1);
+            // put the value to assign in GR1
+            builder.pop(GR1);
+            // store the value to assign in the target element
+            builder.st(GR1, "0", GR2);
         } else {
-            asm.append("; TODO: handle pointer assignment\n");
+            builder.comment("TODO: handle pointer assignment");
         }
     }
 
     private void emitExpr(Expr e) {
-        if (e instanceof IntLit lit) {
-            asm.append("LAD GR1,").append(lit.getValue()).append("\n");
-        } else if (e instanceof VarRef var) {
-            asm.append("LD GR1,").append(var.getName()).append("\n");
-        } else if (e instanceof Binary bin) {
-            emitExpr(bin.getLeft());
-            asm.append("PUSH GR1\n");
-            emitExpr(bin.getRight());
-            asm.append("POP GR2\n");
-            switch (bin.getOp()) {
-                case ADD -> asm.append("ADDA GR1,GR2\n");
-                case SUB -> asm.append("SUBA GR1,GR2\n");
-                case MUL -> asm.append("MULA GR1,GR2\n");
-                case DIV -> asm.append("DIVA GR1,GR2\n");
-                case LT, GT, LE, GE, EQ, NE -> emitComparison(bin.getOp());
+        switch (e) {
+            case IntLit lit -> builder.lad(GR1, lit.getValue());
+            case VarRef v -> {
+                Symbol symbol = this.semanticInfo.getSymbol(this.currentFunction.getName(), v.getName());
+                switch (symbol.getStorageClass()) {
+                case StorageClass.GLOBAL -> builder.ld(GR1, v.getName().toUpperCase());
+                case StorageClass.LOCAL ->  builder.ld(GR1, 65536 - symbol.getOffset(), GR6);
+                case StorageClass.PARAM ->  builder.ld(GR1, symbol.getOffset(), GR6);
+                }
             }
-        } else if (e instanceof Call c) {
-            emitCall(c);
+            case LvArrayElem v -> {
+                // put the index of the array in GR1
+                emitExpr(v.getExpr());
+                // put the start address of the array in GR2
+                Symbol symbol = this.semanticInfo.getSymbol(this.currentFunction.getName(), v.getName());
+                switch (symbol.getStorageClass()) {
+                case StorageClass.GLOBAL -> builder.lad(GR2, v.getName().toUpperCase());
+                case StorageClass.LOCAL ->  builder.lad(GR2, 65536 - symbol.getOffset(), GR6);
+                case StorageClass.PARAM ->  builder.lad(GR2, symbol.getOffset(), GR6);
+                }
+                // put the address of the target element in GR2
+                builder.adda(GR2, GR1);
+                // put the value of the target element in GR1
+                builder.ld(GR1, "0", GR2);
+            }
+            case Binary bin -> {
+                emitExpr(bin.getRight());
+                builder.push("0", GR1);
+                emitExpr(bin.getLeft());
+                builder.pop(GR2);
+                switch (bin.getOp()) {
+                case ADD -> builder.adda(GR1, GR2);
+                case SUB -> builder.suba(GR1, GR2);
+                case MUL -> builder.comment("TODO: MULA not implemented");
+                case DIV -> builder.comment("TODO: DIVA not implemented");
+                default -> emitComparison(bin.getOp());
+                }
+            }
+            case UnaryNeg u -> {
+                emitExpr(u.getExpr());
+                builder.xor(GR0, GR0);
+                builder.suba(GR0, GR1);
+                builder.ld(GR1, GR0);
+            }
+            case Call c -> emitCall(c);
+            default -> {
+                throw new MinicException(String.format("Unimplemented: %s", e.toString()));
+            }
         }
     }
 
     private void emitComparison(Binary.Op op) {
-        String trueLabel = newLabel("TRUE");
-        String endLabel = newLabel("ENDCMP");
-        asm.append("CPA GR2,GR1\n");
+        String trueLabel = lgCompareTrue.getNewLabel();
+        String endLabel = lgCompareEnd.getNewLabel();
+        builder.cpa(GR1, GR2);
         switch (op) {
-            case LT -> asm.append("JMI ").append(trueLabel).append("\n");
-            case GT -> asm.append("JPL ").append(trueLabel).append("\n");
-            case LE -> asm.append("JMI ").append(trueLabel).append("\nJZE ").append(trueLabel).append("\n");
-            case GE -> asm.append("JPL ").append(trueLabel).append("\nJZE ").append(trueLabel).append("\n");
-            case EQ -> asm.append("JZE ").append(trueLabel).append("\n");
-            case NE -> asm.append("JNZ ").append(trueLabel).append("\n");
+        case LT -> builder.jmi(trueLabel);
+        case GT -> builder.jpl(trueLabel);
+        case LE -> { builder.jmi(trueLabel); builder.jze(trueLabel); }
+        case GE -> { builder.jpl(trueLabel); builder.jze(trueLabel); }
+        case EQ -> builder.jze(trueLabel);
+        case NE -> builder.jnz(trueLabel);
+        default -> throw new MinicException("unreachable");
         }
-        asm.append("LAD GR1,0\n");
-        asm.append("JUMP ").append(endLabel).append("\n");
-        asm.append(trueLabel).append("\n");
-        asm.append("LAD GR1,1\n");
-        asm.append(endLabel).append("\n");
+        builder.xor(GR0, GR0).c("False branch");
+        builder.jump(endLabel);
+        builder.ld(GR0, GR7).l(trueLabel).c("True branch");
+        builder.nop().l(endLabel);
     }
 
     private void emitIf(IfStmt i) {
-        String elseLabel = newLabel("ELSE");
-        String endLabel = newLabel("ENDIF");
+        String elseLabel = lgIfElse.getNewLabel();
+        String endLabel = lgIfEnd.getNewLabel();
         emitExpr(i.getCond());
-        asm.append("JZE ").append(elseLabel).append("\n");
-        emitBlock(i.getThenBlock());
-        asm.append("JUMP ").append(endLabel).append("\n");
-        asm.append(elseLabel).append("\n");
-        if (i.getElseBlock() != null) emitBlock(i.getElseBlock());
-        asm.append(endLabel).append("\n");
+        if(i.getElseBlock() != null) {
+            builder.jze(elseLabel);
+            emitBlock(i.getThenBlock());
+            builder.jump(endLabel);
+            builder.nop().l(elseLabel);
+            emitBlock(i.getElseBlock());
+        } else {
+            builder.jze(endLabel);
+            emitBlock(i.getThenBlock());
+        }
+        builder.nop().l(endLabel);
     }
 
     private void emitWhile(WhileStmt w) {
-        String startLabel = newLabel("WHILE");
-        String endLabel = newLabel("ENDWHILE");
-        asm.append(startLabel).append("\n");
+        String startLabel = lgWhile.getNewLabel();
+        String endLabel = lgWend.getNewLabel();
+        builder.comment(w.toString());
+        builder.nop().l(startLabel);
+        builder.comment(w.getCond().toString());
         emitExpr(w.getCond());
-        asm.append("JZE ").append(endLabel).append("\n");
+        builder.jze(endLabel);
         emitBlock(w.getBody());
-        asm.append("JUMP ").append(startLabel).append("\n");
-        asm.append(endLabel).append("\n");
+        builder.jump(startLabel);
+        builder.nop().l(endLabel);
     }
 
     private void emitFor(ForStmt f) {
-        String startLabel = newLabel("FOR");
-        String endLabel = newLabel("ENDFOR");
+        String startLabel = lgFor.getNewLabel();
+        String endLabel = lgNext.getNewLabel();
         if (f.getInit() != null) emitStmt(f.getInit());
-        asm.append(startLabel).append("\n");
+        builder.nop().l(startLabel);
         if (f.getCond() != null) {
             emitExpr(f.getCond());
-            asm.append("JZE ").append(endLabel).append("\n");
+            builder.jze(endLabel);
         }
         emitBlock(f.getBody());
         if (f.getUpdate() != null) emitStmt(f.getUpdate());
-        asm.append("JUMP ").append(startLabel).append("\n");
-        asm.append(endLabel).append("\n");
+        builder.jump(startLabel);
+        builder.nop().l(endLabel);
     }
 
     private void emitReturn(ReturnStmt r) {
+        builder.comment(r.toString());      
         if (r.getValue() != null) {
             emitExpr(r.getValue());
-            // Return value assumed in GR1
+            builder.ld(GR0, GR1);
         }
-        asm.append("RET\n");
+        emitReturn();
     }
 
-    private void emitCall(Call c) {
-        for (Expr arg : c.getArgs()) {
-            emitExpr(arg);
-            asm.append("PUSH GR1\n");
+    private void emitMacro(MacroStmt m) {
+        builder.comment(m.toString());
+        if("_IN".equalsIgnoreCase(m.getOp())) {
+            builder.in("IBUF", "ILEN");
+        } else {
+            builder.out("OBUF", "OLEN");
         }
-        asm.append("CALL ").append(c.getName()).append("\n");
-        for (int i = 0; i < c.getArgs().size(); i++) {
-            asm.append("POP GR2\n");
-        }
-    }
-
-    private String newLabel(String prefix) {
-        return prefix + "_" + (labelCount++);
     }
 }

@@ -6,4 +6,7 @@ import lombok.Value;
 public class Assign implements Stmt {
     LValue lvalue;
     Expr expr;
+    public String toString() {
+        return String.format("%s=%s", lvalue.toString(), expr.toString());
+    }
 }
