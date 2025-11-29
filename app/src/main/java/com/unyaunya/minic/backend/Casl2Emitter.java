@@ -5,45 +5,35 @@ import com.unyaunya.minic.frontend.*;
 import java.util.*;
 
 public class Casl2Emitter {
-    private final StringBuilder asm = new StringBuilder();
+    private final Casl2Builder builder = new Casl2Builder();
     private int labelCount = 0;
 
     public String emit(Program program) {
-        emitHeader();
+        builder.start("100").l("MAIN").c("Program start");
         emitGlobals(program.getGlobals());
-        asm.append("LAD GR8,STACK\n"); // Initialize stack pointer
+        builder.lad("GR8", "STACK").c("Initialize stack pointer");
         for (FunctionDecl f : program.getFunctions()) {
             emitFunction(f);
         }
-        emitFooter();
-        return asm.toString();
-    }
-
-    private void emitHeader() {
-        asm.append("START\n");
-    }
-
-    private void emitFooter() {
-        asm.append("END\n");
-        asm.append("STACK DS 256\n"); // Reserve stack space
+        builder.end().c("Program end");
+        builder.ds(256).l("STACK").c("Reserve stack space");
+        return builder.build();
     }
 
     private void emitGlobals(List<GlobalDecl> globals) {
         for (GlobalDecl g : globals) {
             int size = (g.getArraySize() > 0) ? g.getArraySize() : 1;
-            asm.append(g.getName()).append(" DS ").append(size).append("\n");
+            builder.ds(size).l(g.getName());
         }
     }
 
     private void emitFunction(FunctionDecl f) {
-        asm.append(f.getName()).append("\n");
-        asm.append("; Prologue\n");
-        asm.append("PUSH 0,GR8\n"); // Save SP
-        asm.append("LAD GR8,0,GR8\n"); // Adjust SP if needed
+        builder.comment("Function: " + f.getName());
+        builder.l(f.getName());
+        builder.rpush().c("Prologue: save registers");
         emitBlock(f.getBody());
-        asm.append("; Epilogue\n");
-        asm.append("POP GR8\n");
-        asm.append("RET\n");
+        builder.rpop().c("Epilogue: restore registers");
+        builder.ret();
     }
 
     private void emitBlock(Block b) {
@@ -73,32 +63,32 @@ public class Casl2Emitter {
     private void emitAssign(Assign a) {
         emitExpr(a.getExpr());
         if (a.getLvalue() instanceof LvVar lv) {
-            asm.append("ST GR1,").append(lv.getName()).append("\n");
+            builder.st("GR1", lv.getName());
         } else if (a.getLvalue() instanceof LvArrayElem lv) {
             emitExpr(lv.getExpr());
-            asm.append("LAD GR2,").append(lv.getName()).append("\n");
-            asm.append("ADDA GR2,GR1\n");
-            asm.append("ST GR1,0,GR2\n");
+            builder.lad("GR2", lv.getName());
+            builder.adda("GR2", "GR1");
+            builder.st("GR1", "0,GR2");
         } else {
-            asm.append("; TODO: handle pointer assignment\n");
+            builder.comment("TODO: handle pointer assignment");
         }
     }
 
     private void emitExpr(Expr e) {
         if (e instanceof IntLit lit) {
-            asm.append("LAD GR1,").append(lit.getValue()).append("\n");
+            builder.lad("GR1", String.valueOf(lit.getValue()));
         } else if (e instanceof VarRef var) {
-            asm.append("LD GR1,").append(var.getName()).append("\n");
+            builder.ld("GR1", var.getName());
         } else if (e instanceof Binary bin) {
             emitExpr(bin.getLeft());
-            asm.append("PUSH GR1\n");
+            builder.push("GR1");
             emitExpr(bin.getRight());
-            asm.append("POP GR2\n");
+            builder.pop("GR2");
             switch (bin.getOp()) {
-                case ADD -> asm.append("ADDA GR1,GR2\n");
-                case SUB -> asm.append("SUBA GR1,GR2\n");
-                case MUL -> asm.append("MULA GR1,GR2\n");
-                case DIV -> asm.append("DIVA GR1,GR2\n");
+                case ADD -> builder.adda("GR1", "GR2");
+                case SUB -> builder.suba("GR1", "GR2");
+                case MUL -> builder.comment("TODO: MULA not implemented");
+                case DIV -> builder.comment("TODO: DIVA not implemented");
                 case LT, GT, LE, GE, EQ, NE -> emitComparison(bin.getOp());
             }
         } else if (e instanceof Call c) {
@@ -109,76 +99,75 @@ public class Casl2Emitter {
     private void emitComparison(Binary.Op op) {
         String trueLabel = newLabel("TRUE");
         String endLabel = newLabel("ENDCMP");
-        asm.append("CPA GR2,GR1\n");
+        builder.cpa("GR2", "GR1");
         switch (op) {
-            case LT -> asm.append("JMI ").append(trueLabel).append("\n");
-            case GT -> asm.append("JPL ").append(trueLabel).append("\n");
-            case LE -> asm.append("JMI ").append(trueLabel).append("\nJZE ").append(trueLabel).append("\n");
-            case GE -> asm.append("JPL ").append(trueLabel).append("\nJZE ").append(trueLabel).append("\n");
-            case EQ -> asm.append("JZE ").append(trueLabel).append("\n");
-            case NE -> asm.append("JNZ ").append(trueLabel).append("\n");
+            case LT -> builder.jmi(trueLabel);
+            case GT -> builder.jpl(trueLabel);
+            case LE -> { builder.jmi(trueLabel); builder.jze(trueLabel); }
+            case GE -> { builder.jpl(trueLabel); builder.jze(trueLabel); }
+            case EQ -> builder.jze(trueLabel);
+            case NE -> builder.jnz(trueLabel);
         }
-        asm.append("LAD GR1,0\n");
-        asm.append("JUMP ").append(endLabel).append("\n");
-        asm.append(trueLabel).append("\n");
-        asm.append("LAD GR1,1\n");
-        asm.append(endLabel).append("\n");
+        builder.lad("GR1", "0");
+        builder.jump(endLabel);
+        builder.comment("True branch").l(trueLabel);
+        builder.lad("GR1", "1");
+        builder.l(endLabel);
     }
 
     private void emitIf(IfStmt i) {
         String elseLabel = newLabel("ELSE");
         String endLabel = newLabel("ENDIF");
         emitExpr(i.getCond());
-        asm.append("JZE ").append(elseLabel).append("\n");
+        builder.jze(elseLabel);
         emitBlock(i.getThenBlock());
-        asm.append("JUMP ").append(endLabel).append("\n");
-        asm.append(elseLabel).append("\n");
+        builder.jump(endLabel);
+        builder.l(elseLabel);
         if (i.getElseBlock() != null) emitBlock(i.getElseBlock());
-        asm.append(endLabel).append("\n");
+        builder.l(endLabel);
     }
 
     private void emitWhile(WhileStmt w) {
         String startLabel = newLabel("WHILE");
         String endLabel = newLabel("ENDWHILE");
-        asm.append(startLabel).append("\n");
+        builder.l(startLabel);
         emitExpr(w.getCond());
-        asm.append("JZE ").append(endLabel).append("\n");
+        builder.jze(endLabel);
         emitBlock(w.getBody());
-        asm.append("JUMP ").append(startLabel).append("\n");
-        asm.append(endLabel).append("\n");
+        builder.jump(startLabel);
+        builder.l(endLabel);
     }
 
     private void emitFor(ForStmt f) {
         String startLabel = newLabel("FOR");
         String endLabel = newLabel("ENDFOR");
         if (f.getInit() != null) emitStmt(f.getInit());
-        asm.append(startLabel).append("\n");
+        builder.l(startLabel);
         if (f.getCond() != null) {
             emitExpr(f.getCond());
-            asm.append("JZE ").append(endLabel).append("\n");
+            builder.jze(endLabel);
         }
         emitBlock(f.getBody());
         if (f.getUpdate() != null) emitStmt(f.getUpdate());
-        asm.append("JUMP ").append(startLabel).append("\n");
-        asm.append(endLabel).append("\n");
+        builder.jump(startLabel);
+        builder.l(endLabel);
     }
 
     private void emitReturn(ReturnStmt r) {
         if (r.getValue() != null) {
             emitExpr(r.getValue());
-            // Return value assumed in GR1
         }
-        asm.append("RET\n");
+        builder.ret();
     }
 
     private void emitCall(Call c) {
         for (Expr arg : c.getArgs()) {
             emitExpr(arg);
-            asm.append("PUSH GR1\n");
+            builder.push("GR1");
         }
-        asm.append("CALL ").append(c.getName()).append("\n");
+        builder.call(c.getName());
         for (int i = 0; i < c.getArgs().size(); i++) {
-            asm.append("POP GR2\n");
+            builder.pop("GR2");
         }
     }
 
