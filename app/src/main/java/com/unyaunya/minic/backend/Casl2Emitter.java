@@ -11,6 +11,7 @@ public class Casl2Emitter {
     public String emit(Program program) {
         emitHeader();
         emitGlobals(program.getGlobals());
+        asm.append("LAD GR8,STACK\n"); // Initialize stack pointer
         for (FunctionDecl f : program.getFunctions()) {
             emitFunction(f);
         }
@@ -24,6 +25,7 @@ public class Casl2Emitter {
 
     private void emitFooter() {
         asm.append("END\n");
+        asm.append("STACK DS 256\n"); // Reserve stack space
     }
 
     private void emitGlobals(List<GlobalDecl> globals) {
@@ -35,7 +37,12 @@ public class Casl2Emitter {
 
     private void emitFunction(FunctionDecl f) {
         asm.append(f.getName()).append("\n");
+        asm.append("; Prologue\n");
+        asm.append("PUSH 0,GR8\n"); // Save SP
+        asm.append("LAD GR8,0,GR8\n"); // Adjust SP if needed
         emitBlock(f.getBody());
+        asm.append("; Epilogue\n");
+        asm.append("POP GR8\n");
         asm.append("RET\n");
     }
 
@@ -67,8 +74,13 @@ public class Casl2Emitter {
         emitExpr(a.getExpr());
         if (a.getLvalue() instanceof LvVar lv) {
             asm.append("ST GR1,").append(lv.getName()).append("\n");
+        } else if (a.getLvalue() instanceof LvArrayElem lv) {
+            emitExpr(lv.getExpr());
+            asm.append("LAD GR2,").append(lv.getName()).append("\n");
+            asm.append("ADDA GR2,GR1\n");
+            asm.append("ST GR1,0,GR2\n");
         } else {
-            asm.append("; TODO: handle array or pointer assignment\n");
+            asm.append("; TODO: handle pointer assignment\n");
         }
     }
 
@@ -87,11 +99,30 @@ public class Casl2Emitter {
                 case SUB -> asm.append("SUBA GR1,GR2\n");
                 case MUL -> asm.append("MULA GR1,GR2\n");
                 case DIV -> asm.append("DIVA GR1,GR2\n");
-                case LT, GT, LE, GE, EQ, NE -> asm.append("; Comparison handled in control flow\n");
+                case LT, GT, LE, GE, EQ, NE -> emitComparison(bin.getOp());
             }
         } else if (e instanceof Call c) {
             emitCall(c);
         }
+    }
+
+    private void emitComparison(Binary.Op op) {
+        String trueLabel = newLabel("TRUE");
+        String endLabel = newLabel("ENDCMP");
+        asm.append("CPA GR2,GR1\n");
+        switch (op) {
+            case LT -> asm.append("JMI ").append(trueLabel).append("\n");
+            case GT -> asm.append("JPL ").append(trueLabel).append("\n");
+            case LE -> asm.append("JMI ").append(trueLabel).append("\nJZE ").append(trueLabel).append("\n");
+            case GE -> asm.append("JPL ").append(trueLabel).append("\nJZE ").append(trueLabel).append("\n");
+            case EQ -> asm.append("JZE ").append(trueLabel).append("\n");
+            case NE -> asm.append("JNZ ").append(trueLabel).append("\n");
+        }
+        asm.append("LAD GR1,0\n");
+        asm.append("JUMP ").append(endLabel).append("\n");
+        asm.append(trueLabel).append("\n");
+        asm.append("LAD GR1,1\n");
+        asm.append(endLabel).append("\n");
     }
 
     private void emitIf(IfStmt i) {
