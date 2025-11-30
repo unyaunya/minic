@@ -30,8 +30,10 @@ public class Casl2Emitter {
         builder.comment("Function: " + f.getName());
         builder.rpush().c("Prologue: save registers").l(f.getName());
         emitBlock(f.getBody());
-        builder.rpop().c("Epilogue: restore registers");
-        builder.ret();
+        if (!builder.lastIsRet()) {
+            builder.rpop().c("Epilogue: restore registers");
+            builder.ret();
+        }
     }
 
     private void emitBlock(Block b) {
@@ -155,6 +157,7 @@ public class Casl2Emitter {
         if (r.getValue() != null) {
             emitExpr(r.getValue());
         }
+        builder.rpop().c("Restore registers before return");
         builder.ret();
     }
 

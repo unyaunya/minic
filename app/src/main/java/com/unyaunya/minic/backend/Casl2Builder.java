@@ -92,4 +92,13 @@ public class Casl2Builder {
         }
         return sb.toString();
     }
+    
+    public AsmLine getLastLine() {
+        return lines.isEmpty() ? null : lines.get(lines.size() - 1);
+    }
+
+    public boolean lastIsRet() {
+        AsmLine last = getLastLine();
+        return last != null && "RET".equals(last.getOpcode());
+    }
 }
