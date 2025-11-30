@@ -35,11 +35,9 @@ class Casl2EmitterTest {
         String actual = emitter.emit(program);
 
         String expected =
-                "START    \n" +
-                "         LAD    GR8,STACK               \n" +
-                "MAIN     \n" +
-                "; Prologue\n" +
-                "         PUSH   0,GR8                   \n" +
+                "PRG      START                          ; Program start\n" +
+                "; Function: MAIN\n" +
+                "MAIN     PUSH   0,GR8                   \n" +
                 "         LAD    GR8,0,GR8               \n" +
                 "         LAD    GR1,1                   \n" +
                 "         PUSH   GR1                     \n" +
@@ -48,9 +46,9 @@ class Casl2EmitterTest {
                 "         ADDA   GR1,GR2                 \n" +
                 "; Epilogue\n" +
                 "         POP    GR8                     \n" +
-                "         RET                             \n" +
-                "END      \n" +
-                "STACK    DS     256                     \n";
+                "         RET                            \n" +
+                "STACK    DS     256                     \n" +
+                "         END      \n";
 
         assertEquals(expected, actual);
     }
@@ -58,7 +56,7 @@ class Casl2EmitterTest {
     @Test
     void testEmitGlobalVariable() {
         // Program: int X; int main() { X = 42; return X; }
-        GlobalDecl globalX = new GlobalDecl(new TypeSpec(BaseType.INT, 0, null), "X", null);
+        GlobalDecl globalX = new GlobalDecl(new TypeSpec(BaseType.INT, 0, null), "X");
         Program program = new Program();
         program.getGlobals().add(globalX);
 

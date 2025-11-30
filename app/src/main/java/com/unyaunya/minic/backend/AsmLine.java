@@ -38,7 +38,11 @@ class AsmLine {
     }
 
     public void setLabel(String label) {
-        this.label = (label != null && label.length() > 8) ? label.substring(0, 8) : label;
+        if (label == null || label.isEmpty()) {
+            this.label = null;
+        } else {
+            this.label = (label.length() > 8) ? label.substring(0, 8).toUpperCase() : label.toUpperCase();
+        }
     }
 
     public void setComment(String comment) {

@@ -9,28 +9,26 @@ public class Casl2Emitter {
     private int labelCount = 0;
 
     public String emit(Program program) {
-        builder.start("100").l("MAIN").c("Program start");
-        emitGlobals(program.getGlobals());
-        builder.lad("GR8", "STACK").c("Initialize stack pointer");
+        builder.start().l("PRG").c("Program start");
         for (FunctionDecl f : program.getFunctions()) {
             emitFunction(f);
         }
+        builder.comment("Data Section");
+        emitGlobals(program.getGlobals());
         builder.end().c("Program end");
-        builder.ds(256).l("STACK").c("Reserve stack space");
         return builder.build();
     }
 
     private void emitGlobals(List<GlobalDecl> globals) {
         for (GlobalDecl g : globals) {
-            int size = (g.getArraySize() != null) ? g.getArraySize() : 1;
+            int size = (g.getType().getArraySize() != null) ? g.getType().getArraySize() : 1;
             builder.ds(size).l(g.getName());
         }
     }
 
     private void emitFunction(FunctionDecl f) {
         builder.comment("Function: " + f.getName());
-        builder.l(f.getName());
-        builder.rpush().c("Prologue: save registers");
+        builder.rpush().c("Prologue: save registers").l(f.getName());
         emitBlock(f.getBody());
         builder.rpop().c("Epilogue: restore registers");
         builder.ret();
@@ -81,7 +79,7 @@ public class Casl2Emitter {
             builder.ld("GR1", var.getName());
         } else if (e instanceof Binary bin) {
             emitExpr(bin.getLeft());
-            builder.push("GR1");
+            builder.push("0", "GR1");
             emitExpr(bin.getRight());
             builder.pop("GR2");
             switch (bin.getOp()) {
@@ -163,7 +161,7 @@ public class Casl2Emitter {
     private void emitCall(Call c) {
         for (Expr arg : c.getArgs()) {
             emitExpr(arg);
-            builder.push("GR1");
+            builder.push("0","GR1");
         }
         builder.call(c.getName());
         for (int i = 0; i < c.getArgs().size(); i++) {

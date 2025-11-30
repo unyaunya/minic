@@ -15,6 +15,7 @@ public class Casl2Builder {
     // -------------------------------
     // Assembler Instructions
     // -------------------------------
+    public Casl2Builder start() { return addLine("START", List.of()); }
     public Casl2Builder start(String address) { return addLine("START", List.of(address)); }
     public Casl2Builder end() { return addLine("END", List.of()); }
     public Casl2Builder ds(int size) { return addLine("DS", List.of(String.valueOf(size))); }
@@ -46,7 +47,8 @@ public class Casl2Builder {
     public Casl2Builder jze(String label) { return addLine("JZE", List.of(label)); }
     public Casl2Builder jnz(String label) { return addLine("JNZ", List.of(label)); }
     public Casl2Builder jump(String label) { return addLine("JUMP", List.of(label)); }
-    public Casl2Builder push(String reg) { return addLine("PUSH", List.of(reg)); }
+    public Casl2Builder push(String addr, String reg) { return addLine("PUSH", List.of(addr, reg)); }
+    public Casl2Builder push(String addr) { return addLine("PUSH", List.of(addr)); }
     public Casl2Builder pop(String reg) { return addLine("POP", List.of(reg)); }
     public Casl2Builder call(String label) { return addLine("CALL", List.of(label)); }
     public Casl2Builder ret() { return addLine("RET", List.of()); }
