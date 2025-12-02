@@ -10,11 +10,13 @@ public class Casl2Emitter {
 
     public String emit(Program program) {
         builder.start().l("PRG").c("Program start");
+        builder.lad("GR7", "STACK").c("Initiaize stack");
         for (FunctionDecl f : program.getFunctions()) {
             emitFunction(f);
         }
         builder.comment("Data Section");
         emitGlobals(program.getGlobals());
+        builder.ds(256).l("STACK").c("Stack Ares");
         builder.end().c("Program end");
         return builder.build();
     }
@@ -161,16 +163,18 @@ public class Casl2Emitter {
         builder.ret();
     }
 
+
     private void emitCall(Call c) {
+        // Push arguments in order
         for (Expr arg : c.getArgs()) {
-            emitExpr(arg);
-            builder.push("0","GR1");
+            emitExpr(arg); // result in GR1
+            builder.st("GR1", "0", "GR7");
+            builder.adda("GR7", "1").c("Increment stack pointer");
         }
+        // Call function
         builder.call(c.getName());
-        for (int i = 0; i < c.getArgs().size(); i++) {
-            builder.pop("GR2");
-        }
     }
+
 
     private String newLabel(String prefix) {
         return prefix + "_" + (labelCount++);

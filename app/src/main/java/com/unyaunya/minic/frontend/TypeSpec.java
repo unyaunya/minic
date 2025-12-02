@@ -7,4 +7,7 @@ public class TypeSpec {
     BaseType baseType;
     int pointerDepth;   // 0 = scalar, 1 = *, 2 = **, etc.
     Integer arraySize;  // null if not array
+    public int getSize() {
+        return (arraySize == null) ? 1 : arraySize.intValue();
+    }
 }

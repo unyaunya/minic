@@ -15,6 +15,8 @@ public class SemanticAnalyzer {
     // Global function table
     private final Map<String, FunctionDecl> functions = new HashMap<>();
 
+    private int localVarOffset;
+
     // Entry point
     public void analyze(Program program) {
         // Collect function signatures
@@ -28,7 +30,7 @@ public class SemanticAnalyzer {
         // Global scope
         enterScope();
         for (GlobalDecl g : program.getGlobals()) {
-            declare(g.getName(), new Symbol(g.getType()));
+            declare(g.getName(), new Symbol(g.getType(), StorageClass.GLOBAL, 0));
         }
 
         // Analyze each function
@@ -40,8 +42,10 @@ public class SemanticAnalyzer {
 
     private void analyzeFunction(FunctionDecl f) {
         enterScope();
+        localVarOffset = 0;
+        int i = 0;
         for (Param p : f.getParams()) {
-            declare(p.getName(), new Symbol(p.getType()));
+            declare(p.getName(), new Symbol(p.getType(), StorageClass.PARAM, ++i));
         }
         analyzeBlock(f.getBody(), f.getReturnType());
         exitScope();
@@ -55,7 +59,8 @@ public class SemanticAnalyzer {
 
     private void analyzeStmt(Stmt s, TypeSpec expectedReturn) {
         if (s instanceof VarDecl v) {
-            declare(v.getName(), new Symbol(v.getType()));
+            localVarOffset += v.getType().getSize();
+            declare(v.getName(), new Symbol(v.getType(), StorageClass.LOCAL, localVarOffset));
             if (v.getInit() != null) {
                 TypeSpec rhs = checkExpr(v.getInit());
                 if (!rhs.equals(v.getType())) {

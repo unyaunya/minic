@@ -25,9 +25,12 @@ public class Casl2Builder {
     // -------------------------------
     // Machine Instructions
     // -------------------------------
-    public Casl2Builder ld(String reg, String addr) { return addLine("LD", List.of(reg, addr)); }
-    public Casl2Builder lad(String reg, String value) { return addLine("LAD", List.of(reg, value)); }
-    public Casl2Builder st(String reg, String addr) { return addLine("ST", List.of(reg, addr)); }
+    public Casl2Builder ld(String r1, String r2) { return addLine("LD", List.of(r1, r2)); }
+    public Casl2Builder ld(String r, String adr, String x) { return addLine("LD", List.of(r, adr, x)); }
+    public Casl2Builder lad(String r, String adr) { return addLine("LAD", List.of(r, adr)); }
+    public Casl2Builder lad(String r, String adr, String x) { return addLine("LAD", List.of(r, adr, x)); }
+    public Casl2Builder st(String r, String adr) { return addLine("ST", List.of(r, adr)); }
+    public Casl2Builder st(String r, String adr, String x) { return addLine("ST", List.of(r, adr, x)); }
     public Casl2Builder adda(String r1, String r2) { return addLine("ADDA", List.of(r1, r2)); }
     public Casl2Builder addl(String r1, String r2) { return addLine("ADDL", List.of(r1, r2)); }
     public Casl2Builder suba(String r1, String r2) { return addLine("SUBA", List.of(r1, r2)); }
@@ -42,13 +45,13 @@ public class Casl2Builder {
     public Casl2Builder sra(String r, String count) { return addLine("SRA", List.of(r, count)); }
     public Casl2Builder srl(String r, String count) { return addLine("SRL", List.of(r, count)); }
     public Casl2Builder jov(String label) { return addLine("JOV", List.of(label)); }
-    public Casl2Builder jpl(String label) { return addLine("JPL", List.of(label)); }
-    public Casl2Builder jmi(String label) { return addLine("JMI", List.of(label)); }
-    public Casl2Builder jze(String label) { return addLine("JZE", List.of(label)); }
-    public Casl2Builder jnz(String label) { return addLine("JNZ", List.of(label)); }
-    public Casl2Builder jump(String label) { return addLine("JUMP", List.of(label)); }
-    public Casl2Builder push(String addr, String reg) { return addLine("PUSH", List.of(addr, reg)); }
-    public Casl2Builder push(String addr) { return addLine("PUSH", List.of(addr)); }
+    public Casl2Builder jpl(String adr) { return addLine("JPL", List.of(adr)); }
+    public Casl2Builder jmi(String adr) { return addLine("JMI", List.of(adr)); }
+    public Casl2Builder jze(String adr) { return addLine("JZE", List.of(adr)); }
+    public Casl2Builder jnz(String adr) { return addLine("JNZ", List.of(adr)); }
+    public Casl2Builder jump(String adr) { return addLine("JUMP", List.of(adr)); }
+    public Casl2Builder push(String adr, String reg) { return addLine("PUSH", List.of(adr, reg)); }
+    public Casl2Builder push(String adr) { return addLine("PUSH", List.of(adr)); }
     public Casl2Builder pop(String reg) { return addLine("POP", List.of(reg)); }
     public Casl2Builder call(String label) { return addLine("CALL", List.of(label)); }
     public Casl2Builder ret() { return addLine("RET", List.of()); }

@@ -1,16 +1,15 @@
-
 package com.unyaunya.minic.semantics;
 
 import com.unyaunya.minic.frontend.TypeSpec;
-import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Value;
 
 /**
  * Represents a symbol in the symbol table.
  * Stores type information and can be extended for offsets, etc.
  */
-@Data
-@AllArgsConstructor
+@Value
 public class Symbol {
-    private TypeSpec type;
+    TypeSpec type;
+    StorageClass storageClass;
+    int offset; // For PARAM and LOCAL: offset from GR7
 }
