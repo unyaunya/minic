@@ -10,4 +10,8 @@ public class FunctionDecl implements Node {
     String name;
     List<Param> params;
     Block body;
+
+    public String toString() {
+        return String.format("%s(%s)", name, String.join(", ", params.stream().map(i -> i.toString()).toList()));
+    }
 }

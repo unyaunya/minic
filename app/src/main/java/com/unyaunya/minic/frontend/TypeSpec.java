@@ -10,4 +10,8 @@ public class TypeSpec {
     public int getSize() {
         return (arraySize == null) ? 1 : arraySize.intValue();
     }
+
+    public String toString() {
+        return String.format("%s%s", baseType.toString(), "*".repeat(pointerDepth));
+    }
 }

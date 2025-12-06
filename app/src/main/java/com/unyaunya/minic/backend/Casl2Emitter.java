@@ -49,7 +49,7 @@ public class Casl2Emitter {
 
     private void emitFunction(FunctionDecl f) {
         this.currentFunction = f;
-        builder.comment("Function: " + f.getName());
+        builder.comment(f.toString());
         builder.suba(GR7, 1).l(f.getName().toUpperCase());
         builder.st(GR6, "0", GR7).c("Like push ebp");
         builder.ld(GR6, GR7).c("Like mov ebp, esp");
@@ -69,8 +69,9 @@ public class Casl2Emitter {
         if (localSize > 0) {
             builder.adda(GR7, localSize);
         }
-        builder.ld(GR6, "0", GR7).c("Like pop ebp");
         builder.ld(GR7, GR6).c("Like mov esp, ebp");
+        builder.ld(GR6, "0", GR7).c("Like pop ebp");
+        builder.adda(GR7, 1);
         builder.ret();
     }
 
@@ -83,6 +84,11 @@ public class Casl2Emitter {
         }
         // Call function
         builder.call(c.getName().toUpperCase());
+        // Release arguments
+        if (!c.getArgs().isEmpty()) {
+            builder.adda(GR7, c.getArgs().size());
+        }
+        // Move return value to GR1
         builder.ld(GR1, GR0);
     }
 
@@ -107,6 +113,10 @@ public class Casl2Emitter {
             emitReturn(r);
         } else if (s instanceof Block b) {
             emitBlock(b);
+        } else if (s instanceof VarDecl) {
+            // NOP;
+        } else {
+            throw new MinicException(String.format("Unimplemented: %s", s.toString()));
         }
     }
 
@@ -118,20 +128,26 @@ public class Casl2Emitter {
             String comment = String.format("Store %s", v.getName());
             switch (symbol.getStorageClass()) {
             case StorageClass.GLOBAL -> builder.st(GR1, v.getName().toUpperCase()).c(comment);
-            case StorageClass.LOCAL ->  builder.st(GR1, symbol.getOffset(), GR7).c(comment);
+            case StorageClass.LOCAL ->  builder.st(GR1, 65536 - symbol.getOffset(), GR6).c(comment);
             case StorageClass.PARAM ->  builder.st(GR1, symbol.getOffset(), GR6).c(comment);
             }
         } else if (a.getLvalue() instanceof LvArrayElem lv) {
+            // evacuate the value to assign
             builder.push("0", GR1);
+            // put the index of the array in GR1
             emitExpr(lv.getExpr());
+            // put the start address of the array in GR2
             Symbol symbol = this.semanticInfo.getSymbol(this.currentFunction.getName(), lv.getName());
             switch (symbol.getStorageClass()) {
             case StorageClass.GLOBAL -> builder.lad(GR2, lv.getName().toUpperCase());
-            case StorageClass.LOCAL ->  builder.lad(GR2, symbol.getOffset(), GR7);
+            case StorageClass.LOCAL ->  builder.lad(GR2, 65536 - symbol.getOffset(), GR6);
             case StorageClass.PARAM ->  builder.lad(GR2, symbol.getOffset(), GR6);
             }
+            // put the address of the target element in GR2
             builder.adda(GR2, GR1);
+            // put the value to assign in GR1
             builder.pop(GR1);
+            // store the value to assign in the target element
             builder.st(GR1, "0", GR2);
         } else {
             builder.comment("TODO: handle pointer assignment");
@@ -139,37 +155,50 @@ public class Casl2Emitter {
     }
 
     private void emitExpr(Expr e) {
-        if (e instanceof IntLit lit) {
-            builder.lad(GR1, lit.getValue());
-        } else if (e instanceof VarRef v) {
-            Symbol symbol = this.semanticInfo.getSymbol(this.currentFunction.getName(), v.getName());
-            switch (symbol.getStorageClass()) {
-            case StorageClass.GLOBAL -> builder.ld(GR1, v.getName().toUpperCase());
-            case StorageClass.LOCAL ->  builder.ld(GR1, symbol.getOffset(), GR7);
-            case StorageClass.PARAM ->  builder.ld(GR1, symbol.getOffset(), GR6);
+        switch (e) {
+            case IntLit lit -> builder.lad(GR1, lit.getValue());
+            case VarRef v -> {
+                Symbol symbol = this.semanticInfo.getSymbol(this.currentFunction.getName(), v.getName());
+                switch (symbol.getStorageClass()) {
+                case StorageClass.GLOBAL -> builder.ld(GR1, v.getName().toUpperCase());
+                case StorageClass.LOCAL ->  builder.ld(GR1, 65536 - symbol.getOffset(), GR6);
+                case StorageClass.PARAM ->  builder.ld(GR1, symbol.getOffset(), GR6);
+                }
             }
-        } else if (e instanceof LvArrayElem v) {
-            // TODO
-            Symbol symbol = this.semanticInfo.getSymbol(this.currentFunction.getName(), v.getName());
-            switch (symbol.getStorageClass()) {
-            case StorageClass.GLOBAL -> builder.ld(GR1, v.getName().toUpperCase());
-            case StorageClass.LOCAL ->  builder.ld(GR1, symbol.getOffset(), GR7);
-            case StorageClass.PARAM ->  builder.ld(GR1, symbol.getOffset(), GR6);
+            case LvArrayElem v -> {
+                // put the index of the array in GR1
+                emitExpr(v.getExpr());
+                // put the start address of the array in GR2
+                Symbol symbol = this.semanticInfo.getSymbol(this.currentFunction.getName(), v.getName());
+                switch (symbol.getStorageClass()) {
+                case StorageClass.GLOBAL -> builder.lad(GR2, v.getName().toUpperCase());
+                case StorageClass.LOCAL ->  builder.lad(GR2, 65536 - symbol.getOffset(), GR6);
+                case StorageClass.PARAM ->  builder.lad(GR2, symbol.getOffset(), GR6);
+                }
+                // put the address of the target element in GR2
+                builder.adda(GR2, GR1);
+                // put the value of the target element in GR1
+                builder.ld(GR1, "0", GR2);
             }
-        } else if (e instanceof Binary bin) {
-            emitExpr(bin.getLeft());
-            builder.push("0", GR1);
-            emitExpr(bin.getRight());
-            builder.pop(GR2);
-            switch (bin.getOp()) {
-            case ADD -> builder.adda(GR1, GR2);
-            case SUB -> builder.suba(GR1, GR2);
-            case MUL -> builder.comment("TODO: MULA not implemented");
-            case DIV -> builder.comment("TODO: DIVA not implemented");
-            default -> emitComparison(bin.getOp());
+            case Binary bin -> {
+                emitExpr(bin.getRight());
+                builder.push("0", GR1);
+                emitExpr(bin.getLeft());
+                builder.pop(GR2);
+                switch (bin.getOp()) {
+                case ADD -> builder.adda(GR1, GR2);
+                case SUB -> builder.suba(GR1, GR2);
+                case MUL -> builder.comment("TODO: MULA not implemented");
+                case DIV -> builder.comment("TODO: DIVA not implemented");
+                default -> emitComparison(bin.getOp());
+                }
             }
-        } else if (e instanceof Call c) {
-            emitCall(c);
+            case Call c -> {
+                emitCall(c);
+            }
+            default -> {
+                throw new MinicException(String.format("Unimplemented: %s", e.toString()));
+            }
         }
     }
 
@@ -212,6 +241,7 @@ public class Casl2Emitter {
     private void emitWhile(WhileStmt w) {
         String startLabel = lgWhile.getNewLabel();
         String endLabel = lgWend.getNewLabel();
+        builder.comment(w.toString());
         builder.nop().l(startLabel);
         builder.comment(w.getCond().toString());
         emitExpr(w.getCond());
