@@ -76,8 +76,8 @@ public class SemanticAnalyzer {
 
     private void analyzeStmt(Stmt s, TypeSpec expectedReturn) {
         if (s instanceof VarDecl v) {
-            Symbol sym = new Symbol(v.getType(), StorageClass.LOCAL, localVarOffset);
             localVarOffset += v.getType().getSize(); // assume getSize() returns word count
+            Symbol sym = new Symbol(v.getType(), StorageClass.LOCAL, localVarOffset);
             declare(v.getName(), sym);
 
             if (v.getInit() != null) {

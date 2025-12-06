@@ -1,6 +1,5 @@
-int d[10];
-
 void main() {
+    int d[10];
     int i;
     int prev;
 

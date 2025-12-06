@@ -125,7 +125,9 @@ public class AstBuilder extends MiniCBaseVisitor<Node> {
     @Override
     public Node visitVarDecl(MiniCParser.VarDeclContext ctx) {
         String name = ctx.IDENT().getText();
-        TypeSpec type = toTypeSpec(ctx.typeSpec());
+        ArraySizeContext asc = ctx.arraySize();
+        Integer arraySize = (asc == null) ? null : toInt(asc.INTEGER());
+        TypeSpec type = toTypeSpec(ctx.typeSpec(), arraySize);
         // If you want local arrays encoded in TypeSpec, you can read ctx.arraySize() here and update TypeSpec accordingly.
         Expr init = (ctx.expr() == null) ? null : (Expr) visit(ctx.expr());
         return new VarDecl(type, name, init);
