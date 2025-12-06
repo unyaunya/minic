@@ -1,22 +1,41 @@
 
 package com.unyaunya.minic.backend;
 
+import static com.unyaunya.minic.backend.Casl2Builder.*;
+
+import com.unyaunya.minic.MinicException;
 import com.unyaunya.minic.frontend.*;
+import com.unyaunya.minic.semantics.SemanticInfo;
+import com.unyaunya.minic.semantics.StorageClass;
+import com.unyaunya.minic.semantics.Symbol;
+
 import java.util.*;
 
 public class Casl2Emitter {
     private final Casl2Builder builder = new Casl2Builder();
-    private int labelCount = 0;
+    private SemanticInfo semanticInfo;
+    private FunctionDecl currentFunction;
+    private Casl2LabelGenerator lgCompareTrue = new Casl2LabelGenerator("CT", "True branch of a comparison");
+    private Casl2LabelGenerator lgCompareEnd = new Casl2LabelGenerator("CE", "End label of a comparison");
+    private Casl2LabelGenerator lgIfElse = new Casl2LabelGenerator("IFELS", "Else clause");
+    private Casl2LabelGenerator lgIfEnd = new Casl2LabelGenerator("ENDIF", "End of if statement");
+    private Casl2LabelGenerator lgWhile = new Casl2LabelGenerator("WHIL", "While statement");
+    private Casl2LabelGenerator lgWend = new Casl2LabelGenerator("WEND", "End of while statement");
+    private Casl2LabelGenerator lgFor = new Casl2LabelGenerator("FOR", "For statement");
+    private Casl2LabelGenerator lgNext = new Casl2LabelGenerator("NXT", "End of while statement");
 
-    public String emit(Program program) {
+    public String emit(Program program, SemanticInfo semanticInfo, int stackSize) {
+        this.semanticInfo = semanticInfo;
         builder.start().l("PRG").c("Program start");
-        builder.lad("GR7", "STACK").c("Initiaize stack");
+        builder.lad(GR1, stackSize);
+        builder.lad(GR7, "STACK", GR1).c("GR7 plays a role of ESP in x86");
+        builder.ld(GR6, GR7).c("GR7 plays a role of EBP in x86");
         for (FunctionDecl f : program.getFunctions()) {
             emitFunction(f);
         }
         builder.comment("Data Section");
         emitGlobals(program.getGlobals());
-        builder.ds(256).l("STACK").c("Stack Ares");
+        builder.ds(stackSize).l("STACK").c("Stack Ares");
         builder.end().c("Program end");
         return builder.build();
     }
@@ -24,18 +43,47 @@ public class Casl2Emitter {
     private void emitGlobals(List<GlobalDecl> globals) {
         for (GlobalDecl g : globals) {
             int size = (g.getType().getArraySize() != null) ? g.getType().getArraySize() : 1;
-            builder.ds(size).l(g.getName());
+            builder.ds(size).l(g.getName().toUpperCase());
         }
     }
 
     private void emitFunction(FunctionDecl f) {
+        this.currentFunction = f;
         builder.comment("Function: " + f.getName());
-        builder.rpush().c("Prologue: save registers").l(f.getName());
+        builder.suba(GR7, 1).l(f.getName().toUpperCase());
+        builder.st(GR6, "0", GR7).c("Like push ebp");
+        builder.ld(GR6, GR7).c("Like mov ebp, esp");
+        int localSize = this.semanticInfo.getLocalSize(f.getName());
+        if (localSize > 0) {
+            builder.suba(GR7, localSize).c("Secure local variables");
+        }
         emitBlock(f.getBody());
         if (!builder.lastIsRet()) {
-            builder.rpop().c("Epilogue: restore registers");
-            builder.ret();
+            emitReturn();
         }
+        this.currentFunction = null;
+    }
+
+    private void emitReturn() {
+        int localSize = this.semanticInfo.getLocalSize(this.currentFunction.getName());
+        if (localSize > 0) {
+            builder.adda(GR7, localSize);
+        }
+        builder.ld(GR6, "0", GR7).c("Like pop ebp");
+        builder.ld(GR7, GR6).c("Like mov esp, ebp");
+        builder.ret();
+    }
+
+    private void emitCall(Call c) {
+        // Push arguments in reverse order
+        for (Expr arg : c.getArgs().reversed()) {
+            emitExpr(arg); // result in GR1
+            builder.suba(GR7, 1).c("Decrement stack pointer");
+            builder.st(GR1, "0", GR7);
+        }
+        // Call function
+        builder.call(c.getName().toUpperCase());
+        builder.ld(GR1, GR0);
     }
 
     private void emitBlock(Block b) {
@@ -63,14 +111,28 @@ public class Casl2Emitter {
     }
 
     private void emitAssign(Assign a) {
+        builder.comment(a.toString());
         emitExpr(a.getExpr());
-        if (a.getLvalue() instanceof LvVar lv) {
-            builder.st("GR1", lv.getName());
+        if (a.getLvalue() instanceof LvVar v) {
+            Symbol symbol = this.semanticInfo.getSymbol(this.currentFunction.getName(), v.getName());
+            String comment = String.format("Store %s", v.getName());
+            switch (symbol.getStorageClass()) {
+            case StorageClass.GLOBAL -> builder.st(GR1, v.getName().toUpperCase()).c(comment);
+            case StorageClass.LOCAL ->  builder.st(GR1, symbol.getOffset(), GR7).c(comment);
+            case StorageClass.PARAM ->  builder.st(GR1, symbol.getOffset(), GR6).c(comment);
+            }
         } else if (a.getLvalue() instanceof LvArrayElem lv) {
+            builder.push("0", GR1);
             emitExpr(lv.getExpr());
-            builder.lad("GR2", lv.getName());
-            builder.adda("GR2", "GR1");
-            builder.st("GR1", "0,GR2");
+            Symbol symbol = this.semanticInfo.getSymbol(this.currentFunction.getName(), lv.getName());
+            switch (symbol.getStorageClass()) {
+            case StorageClass.GLOBAL -> builder.lad(GR2, lv.getName().toUpperCase());
+            case StorageClass.LOCAL ->  builder.lad(GR2, symbol.getOffset(), GR7);
+            case StorageClass.PARAM ->  builder.lad(GR2, symbol.getOffset(), GR6);
+            }
+            builder.adda(GR2, GR1);
+            builder.pop(GR1);
+            builder.st(GR1, "0", GR2);
         } else {
             builder.comment("TODO: handle pointer assignment");
         }
@@ -78,20 +140,33 @@ public class Casl2Emitter {
 
     private void emitExpr(Expr e) {
         if (e instanceof IntLit lit) {
-            builder.lad("GR1", String.valueOf(lit.getValue()));
-        } else if (e instanceof VarRef var) {
-            builder.ld("GR1", var.getName());
+            builder.lad(GR1, lit.getValue());
+        } else if (e instanceof VarRef v) {
+            Symbol symbol = this.semanticInfo.getSymbol(this.currentFunction.getName(), v.getName());
+            switch (symbol.getStorageClass()) {
+            case StorageClass.GLOBAL -> builder.ld(GR1, v.getName().toUpperCase());
+            case StorageClass.LOCAL ->  builder.ld(GR1, symbol.getOffset(), GR7);
+            case StorageClass.PARAM ->  builder.ld(GR1, symbol.getOffset(), GR6);
+            }
+        } else if (e instanceof LvArrayElem v) {
+            // TODO
+            Symbol symbol = this.semanticInfo.getSymbol(this.currentFunction.getName(), v.getName());
+            switch (symbol.getStorageClass()) {
+            case StorageClass.GLOBAL -> builder.ld(GR1, v.getName().toUpperCase());
+            case StorageClass.LOCAL ->  builder.ld(GR1, symbol.getOffset(), GR7);
+            case StorageClass.PARAM ->  builder.ld(GR1, symbol.getOffset(), GR6);
+            }
         } else if (e instanceof Binary bin) {
             emitExpr(bin.getLeft());
-            builder.push("0", "GR1");
+            builder.push("0", GR1);
             emitExpr(bin.getRight());
-            builder.pop("GR2");
+            builder.pop(GR2);
             switch (bin.getOp()) {
-                case ADD -> builder.adda("GR1", "GR2");
-                case SUB -> builder.suba("GR1", "GR2");
-                case MUL -> builder.comment("TODO: MULA not implemented");
-                case DIV -> builder.comment("TODO: DIVA not implemented");
-                case LT, GT, LE, GE, EQ, NE -> emitComparison(bin.getOp());
+            case ADD -> builder.adda(GR1, GR2);
+            case SUB -> builder.suba(GR1, GR2);
+            case MUL -> builder.comment("TODO: MULA not implemented");
+            case DIV -> builder.comment("TODO: DIVA not implemented");
+            default -> emitComparison(bin.getOp());
             }
         } else if (e instanceof Call c) {
             emitCall(c);
@@ -99,52 +174,58 @@ public class Casl2Emitter {
     }
 
     private void emitComparison(Binary.Op op) {
-        String trueLabel = newLabel("TRUE");
-        String endLabel = newLabel("ENDCMP");
-        builder.cpa("GR2", "GR1");
+        String trueLabel = lgCompareTrue.getNewLabel();
+        String endLabel = lgCompareEnd.getNewLabel();
+        builder.cpa(GR2, GR1);
         switch (op) {
-            case LT -> builder.jmi(trueLabel);
-            case GT -> builder.jpl(trueLabel);
-            case LE -> { builder.jmi(trueLabel); builder.jze(trueLabel); }
-            case GE -> { builder.jpl(trueLabel); builder.jze(trueLabel); }
-            case EQ -> builder.jze(trueLabel);
-            case NE -> builder.jnz(trueLabel);
+        case LT -> builder.jmi(trueLabel);
+        case GT -> builder.jpl(trueLabel);
+        case LE -> { builder.jmi(trueLabel); builder.jze(trueLabel); }
+        case GE -> { builder.jpl(trueLabel); builder.jze(trueLabel); }
+        case EQ -> builder.jze(trueLabel);
+        case NE -> builder.jnz(trueLabel);
+        default -> throw new MinicException("unreachable");
         }
-        builder.lad("GR1", "0");
+        builder.lad(GR1, 0).c("False branch");
         builder.jump(endLabel);
-        builder.comment("True branch").l(trueLabel);
-        builder.lad("GR1", "1");
-        builder.l(endLabel);
+        builder.lad(GR1, 1).l(trueLabel).c("True branch");
+        builder.nop().l(endLabel);
     }
 
     private void emitIf(IfStmt i) {
-        String elseLabel = newLabel("ELSE");
-        String endLabel = newLabel("ENDIF");
+        String elseLabel = lgIfElse.getNewLabel();
+        String endLabel = lgIfEnd.getNewLabel();
         emitExpr(i.getCond());
-        builder.jze(elseLabel);
-        emitBlock(i.getThenBlock());
-        builder.jump(endLabel);
-        builder.l(elseLabel);
-        if (i.getElseBlock() != null) emitBlock(i.getElseBlock());
-        builder.l(endLabel);
+        if(i.getElseBlock() != null) {
+            builder.jze(elseLabel);
+            emitBlock(i.getThenBlock());
+            builder.jump(endLabel);
+            builder.l(elseLabel);
+            emitBlock(i.getElseBlock());
+        } else {
+            builder.jze(endLabel);
+            emitBlock(i.getThenBlock());
+        }
+        builder.nop().l(endLabel);
     }
 
     private void emitWhile(WhileStmt w) {
-        String startLabel = newLabel("WHILE");
-        String endLabel = newLabel("ENDWHILE");
-        builder.l(startLabel);
+        String startLabel = lgWhile.getNewLabel();
+        String endLabel = lgWend.getNewLabel();
+        builder.nop().l(startLabel);
+        builder.comment(w.getCond().toString());
         emitExpr(w.getCond());
         builder.jze(endLabel);
         emitBlock(w.getBody());
         builder.jump(startLabel);
-        builder.l(endLabel);
+        builder.nop().l(endLabel);
     }
 
     private void emitFor(ForStmt f) {
-        String startLabel = newLabel("FOR");
-        String endLabel = newLabel("ENDFOR");
+        String startLabel = lgFor.getNewLabel();
+        String endLabel = lgNext.getNewLabel();
         if (f.getInit() != null) emitStmt(f.getInit());
-        builder.l(startLabel);
+        builder.nop().l(startLabel);
         if (f.getCond() != null) {
             emitExpr(f.getCond());
             builder.jze(endLabel);
@@ -152,31 +233,15 @@ public class Casl2Emitter {
         emitBlock(f.getBody());
         if (f.getUpdate() != null) emitStmt(f.getUpdate());
         builder.jump(startLabel);
-        builder.l(endLabel);
+        builder.nop().l(endLabel);
     }
 
     private void emitReturn(ReturnStmt r) {
+        builder.comment(r.toString());      
         if (r.getValue() != null) {
             emitExpr(r.getValue());
+            builder.ld(GR0, GR1);
         }
-        builder.rpop().c("Restore registers before return");
-        builder.ret();
-    }
-
-
-    private void emitCall(Call c) {
-        // Push arguments in order
-        for (Expr arg : c.getArgs()) {
-            emitExpr(arg); // result in GR1
-            builder.st("GR1", "0", "GR7");
-            builder.adda("GR7", "1").c("Increment stack pointer");
-        }
-        // Call function
-        builder.call(c.getName());
-    }
-
-
-    private String newLabel(String prefix) {
-        return prefix + "_" + (labelCount++);
+        emitReturn();
     }
 }

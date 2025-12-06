@@ -36,14 +36,14 @@ public class AstBuilder extends MiniCBaseVisitor<Node> {
         throw new IllegalArgumentException("Unknown base type: " + t.getText());
     }
 
-    private TypeSpec toTypeSpec(MiniCParser.TypeSpecContext t, int arraySize) {
+    private TypeSpec toTypeSpec(MiniCParser.TypeSpecContext t, Integer arraySize) {
         BaseType baseType = toBaseType(t.baseType());
         int pointerDepth = (t.pointer() == null) ? 0 : t.pointer().getText().length(); // single '*' for now
         return new TypeSpec(baseType, pointerDepth, arraySize);
     }
 
     private TypeSpec toTypeSpec(MiniCParser.TypeSpecContext t) {
-        return toTypeSpec(t, 0);
+        return toTypeSpec(t, null);
     }
 
     private int toInt(TerminalNode n) {

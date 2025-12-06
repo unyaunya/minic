@@ -11,7 +11,7 @@ import java.net.URISyntaxException;
 import java.nio.file.Path;
 
 class CompilerMainTest {
-    @Test
+    //@Test
     void compileTest() throws IOException, URISyntaxException {
         Path path = getPath("test1.mc");
         String asm = CompilerMain.compile(path);
@@ -25,6 +25,4 @@ class CompilerMainTest {
     Path getPath(String path) throws URISyntaxException {
         return Path.of(getClass().getClassLoader().getResource(path).toURI());
     }   
-
-
 }

@@ -19,6 +19,7 @@ import com.unyaunya.minic.parser.MiniCLexer;
 import com.unyaunya.minic.parser.MiniCParser;
 import com.unyaunya.minic.parser.MiniCParser.ProgramContext;
 import com.unyaunya.minic.semantics.SemanticAnalyzer;
+import com.unyaunya.minic.semantics.SemanticInfo;
 
 public class CompilerMain {
     Logger logger = Logger.getLogger(getClass().getName());    
@@ -44,10 +45,10 @@ public class CompilerMain {
         Program ast = (Program) builder.visit(tree);
 
         SemanticAnalyzer sema = new SemanticAnalyzer();
-        sema.analyze(ast); // throws on error
+        SemanticInfo semanticInfo = sema.analyze(ast); // throws on error
 
         Casl2Emitter emitter = new Casl2Emitter();
-        return emitter.emit(ast);
+        return emitter.emit(ast, semanticInfo, 1024);
     }
 
     public static void main(String[] args) throws IOException {
