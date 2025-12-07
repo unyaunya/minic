@@ -138,6 +138,8 @@ expr
     | IDENT '(' (expr (',' expr)*)? ')'  #funcCall
     | IDENT                              #varRef
     | INTEGER                            #intLit
+    | STRING                             #stringLit
+    | CHARACTER                          #characterLit
     ;
 
 // ----------------------
@@ -145,11 +147,24 @@ expr
 // ----------------------
 INTEGER : [0-9]+ ;
 WS    : [ \t\r\n]+ -> skip ;
+INE_COMMENT
+    : '//' ~[\r\n]* -> skip
+    ;
+BLOCK_COMMENT
+    : '/*' .*? '*/' -> skip
+    ;
 VOID  : 'void' ;
 CHAR  : 'char' ;
 SHORT : 'short' ;
 INT   : 'int' ;
 IDENT : [a-zA-Z][a-zA-Z0-9]* ;
+STRING
+    : '"' ( ~["\\\r\n] | '\\' . )* '"'
+    ;
+CHARACTER
+    : '\'' ( ~['\\\r\n] | '\\' . ) '\''
+    ;
+
 
 // ----------------------
 // Lexer rules (for Macro)
