@@ -288,4 +288,168 @@ public class AstBuilder extends MiniCBaseVisitor<Node> {
     public Node visitIntLit(MiniCParser.IntLitContext ctx) {
         return new IntLit(Integer.parseInt(ctx.INTEGER().getText()));
     }
+
+    @Override
+    public Node visitStringLit(MiniCParser.StringLitContext ctx) {
+        String text = ctx.getText();  // e.g., "\"hello\\n\""
+        if (text.length() < 2 || text.charAt(0) != '"' || text.charAt(text.length() - 1) != '"') {
+            throw new IllegalArgumentException("Invalid string literal: " + text);
+        }
+        String inner = text.substring(1, text.length() - 1);
+        String value = unescapeString(inner);
+        return new StringLit(value);
+    }
+
+    /**
+     * Unescapes the content matched by:
+     *   ( ~["\\\r\n] | '\\' . )*
+     *
+     * Note:
+     * - The lexer allows ANY escape after backslash because '.' was used.
+     * - We choose to be STRICT here and reject unknown escapes to avoid surprises.
+     * - If you want permissive behavior, change the 'default' to append the next char.
+     */
+    private static String unescapeString(String s) {
+        StringBuilder out = new StringBuilder(s.length());
+        for (int i = 0; i < s.length(); ) {
+            char c = s.charAt(i);
+
+            if (c != '\\') {
+                // Normal char (the lexer already excluded " \r \n)
+                out.append(c);
+                i++;
+                continue;
+            }
+
+            // Escaped sequence: backslash + next char(s)
+            if (i + 1 >= s.length()) {
+                throw new IllegalArgumentException("Dangling backslash at end of string");
+            }
+
+            char esc = s.charAt(i + 1);
+            switch (esc) {
+                case 'n': out.append('\n'); i += 2; break;
+                case 'r': out.append('\r'); i += 2; break;
+                case 't': out.append('\t'); i += 2; break;
+                case 'b': out.append('\b'); i += 2; break;
+                case 'f': out.append('\f'); i += 2; break;
+                case '\'': out.append('\''); i += 2; break;
+                case '"': out.append('\"'); i += 2; break;
+                case '\\': out.append('\\'); i += 2; break;
+
+                // If you decide to support \\uXXXX and/or \\xNN, handle them below.
+                case 'u': {
+                    // Expect 4 hex digits: \\uXXXX
+                    if (i + 6 > s.length()) {
+                        throw new IllegalArgumentException("Invalid \\u escape length at index " + i);
+                    }
+                    String hex = s.substring(i + 2, i + 6);
+                    int cp = parseHex(hex, 4);
+                    out.append((char) cp); // BMP only; for full Unicode, consider code points/surrogates
+                    i += 6;
+                    break;
+                }
+                case 'x': {
+                    // Expect 2 hex digits: \xNN
+                    if (i + 4 > s.length()) {
+                        throw new IllegalArgumentException("Invalid \\x escape length at index " + i);
+                    }
+                    String hex = s.substring(i + 2, i + 4);
+                    int cp = parseHex(hex, 2);
+                    out.append((char) cp);
+                    i += 4;
+                    break;
+                }
+
+                default:
+                    // STRICT: reject unknown single-char escapes
+                    throw new IllegalArgumentException("Unknown escape: \\" + esc);
+
+                    // PERMISSIVE alternative:
+                    // out.append(esc);
+                    // i += 2;
+                    // break;
+            }
+        }
+        return out.toString();
+    }
+
+    private static int parseHex(String hex, int expectedDigits) {
+        if (hex.length() != expectedDigits) {
+            throw new IllegalArgumentException("Expected " + expectedDigits + " hex digits, got: " + hex);
+        }
+        try {
+            return Integer.parseInt(hex, 16);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Invalid hex digits: " + hex, e);
+        }
+    }
+
+    @Override
+    public Node visitCharacterLit(MiniCParser.CharacterLitContext ctx) {
+        //return new IntLit(Integer.parseInt(ctx.CHARACTER().getText()));
+        // TEXT like: 'a' or '\n' or '\x' etc. from your lexer rule
+        String text = ctx.getText();  // includes surrounding single quotes
+        // Sanity checks
+        if (text.length() < 3 || text.charAt(0) != '\'' || text.charAt(text.length() - 1) != '\'') {
+            throw new IllegalArgumentException("Invalid character literal: " + text);
+        }
+        String inner = text.substring(1, text.length() - 1);  // content between quotes
+        // Your lexer guarantees inner is either 1 char or '\' + 1 char
+        int codePoint = decodeCharacterInner(inner);
+        return new IntLit(codePoint);
+    }
+
+    /**
+     * Decodes the inner portion of a character literal per your lexer rule:
+     * ( ~['\\\r\n] | '\\' . )
+     *
+     * IMPORTANT: This allows ANY escape of the form '\' + one char (including newline),
+     * because the lexer used '.'. If you want stricter validation, enforce it here.
+     */
+    private static int decodeCharacterInner(String inner) {
+        if (inner.isEmpty()) {
+            throw new IllegalArgumentException("Empty character literal content");
+        }
+
+        if (inner.charAt(0) != '\\') {
+            // Plain single code point (not a quote, backslash, or newline per lexer)
+            // Return its code point; inner length should be 1 here.
+            if (inner.length() != 1) {
+                throw new IllegalArgumentException("Too many characters in literal: " + inner);
+            }
+            return inner.codePointAt(0);
+        }
+
+        // Escaped: '\' + one char (per your lexer)
+        if (inner.length() != 2) {
+            // If you later allow \\uXXXX or \\xNN, change the lexer and expand handling here.
+            throw new IllegalArgumentException("Invalid escape sequence in literal: " + inner);
+        }
+
+        char esc = inner.charAt(1);
+        switch (esc) {
+            case 'n':  return '\n';
+            case 'r':  return '\r';
+            case 't':  return '\t';
+            case 'b':  return '\b';
+            case 'f':  return '\f';
+            case '\'': return '\'';
+            case '"':  return '"';
+            case '\\': return '\\';
+            // If you want to allow other single-char escapes, add cases above.
+
+            // Currently your lexer accepts ANY '.' after '\'.
+            // You can either:
+            //  - allow everything (return that char as-is), or
+            //  - reject unknown escapes to tighten semantics.
+            default:
+                // Option A (permissive): return the char as-is
+                // return esc;
+
+                // Option B (strict): reject unknown escape
+                throw new IllegalArgumentException("Unknown escape: \\" + esc);
+        }
+    }
+
 }

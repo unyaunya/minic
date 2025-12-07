@@ -1,6 +1,7 @@
 
 package com.unyaunya.minic.semantics;
 
+import com.unyaunya.minic.MinicException;
 import com.unyaunya.minic.frontend.*;
 import java.util.*;
 
@@ -19,6 +20,7 @@ public class SemanticAnalyzer {
     // New structures for SemanticInfo
     private final Map<String, Map<String, Symbol>> functionSymbols = new HashMap<>();
     private final Map<String, Integer> localSizes = new HashMap<>();
+    private final TreeSet<String> strings = new TreeSet<>();
 
     private int localVarOffset;
 
@@ -44,7 +46,7 @@ public class SemanticAnalyzer {
         functionSymbols.put("_GLOBAL", scopes.peek());
         exitScope();
 
-        return new SemanticInfo(functionSymbols, localSizes);
+        return new SemanticInfo(functionSymbols, localSizes, this.strings);
     }
 
     private void analyzeFunction(FunctionDecl f) {
@@ -141,7 +143,10 @@ public class SemanticAnalyzer {
 
     private TypeSpec checkExpr(Expr e) {
         if (e instanceof IntLit) {
-            return new TypeSpec(BaseType.INT, 0, null);
+            return new TypeSpec(BaseType.INT);
+        } else if (e instanceof StringLit s) {
+            this.strings.add(s.getValue());
+            return new TypeSpec(BaseType.INT);
         } else if (e instanceof VarRef v) {
             return lookup(v.getName()).getType();
         } else if (e instanceof Binary b) {
@@ -160,13 +165,13 @@ public class SemanticAnalyzer {
             return t;
         } else if (e instanceof AddressOf a) {
             Symbol sym = lookup(a.getName());
-            return new TypeSpec(sym.getType().getBaseType(), sym.getType().getPointerDepth() + 1, null);
+            return new TypeSpec(sym.getType().getBaseType(), sym.getType().getPointerDepth() + 1);
         } else if (e instanceof LvPtrDeref d) {
             TypeSpec t = checkExpr(d.getExpr());
             if (t.getPointerDepth() == 0) {
                 error("Cannot dereference non-pointer");
             }
-            return new TypeSpec(t.getBaseType(), t.getPointerDepth() - 1, null);
+            return new TypeSpec(t.getBaseType(), t.getPointerDepth() - 1);
         } else if (e instanceof LvArrayElem arr) {
             Symbol sym = lookup(arr.getName());
             if (sym.getType().getArraySize() == 0) {
@@ -176,7 +181,7 @@ public class SemanticAnalyzer {
             if (idxType.getBaseType() != BaseType.INT) {
                 error("Array index must be int");
             }
-            return new TypeSpec(sym.getType().getBaseType(), sym.getType().getPointerDepth(), null);
+            return new TypeSpec(sym.getType().getBaseType(), sym.getType().getPointerDepth());
         } else if (e instanceof Call c) {
             FunctionDecl f = functions.get(c.getName());
             if (f == null) {
@@ -195,7 +200,7 @@ public class SemanticAnalyzer {
             return f.getReturnType();
         }
         error("Unknown expression type: " + e);
-        return new TypeSpec(BaseType.INT, 0, null); // fallback
+        return new TypeSpec(BaseType.INT); // fallback
     }
 
     private TypeSpec checkLValue(LValue lv) {
@@ -203,16 +208,16 @@ public class SemanticAnalyzer {
             return lookup(v.getName()).getType();
         } else if (lv instanceof LvArrayElem arr) {
             Symbol sym = lookup(arr.getName());
-            return new TypeSpec(sym.getType().getBaseType(), sym.getType().getPointerDepth(), null);
+            return new TypeSpec(sym.getType().getBaseType(), sym.getType().getPointerDepth());
         } else if (lv instanceof LvPtrDeref d) {
             TypeSpec t = checkExpr(d.getExpr());
             if (t.getPointerDepth() == 0) {
                 error("Cannot dereference non-pointer");
             }
-            return new TypeSpec(t.getBaseType(), t.getPointerDepth() - 1, 0);
+            return new TypeSpec(t.getBaseType(), t.getPointerDepth() - 1);
         }
         error("Unknown lvalue: " + lv);
-        return new TypeSpec(BaseType.INT, 0, null);
+        return new TypeSpec(BaseType.INT);
     }
 
     // ----------------------
@@ -238,6 +243,6 @@ public class SemanticAnalyzer {
     }
 
     private void error(String msg) {
-        throw new RuntimeException("Semantic error: " + msg);
+        throw new MinicException("Semantic error: " + msg);
     }
 }

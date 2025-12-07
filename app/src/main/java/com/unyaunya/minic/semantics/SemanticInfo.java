@@ -2,6 +2,7 @@
 package com.unyaunya.minic.semantics;
 
 import java.util.Map;
+import java.util.SortedSet;
 
 import lombok.Value;
 
@@ -9,10 +10,12 @@ import lombok.Value;
 public class SemanticInfo {
     Map<String, Map<String, Symbol>> functionSymbols; // functionName -> (varName -> Symbol)
     Map<String, Integer> localSizes; // functionName -> total local size
+    SortedSet<String> strings; 
 
-    public SemanticInfo(Map<String, Map<String, Symbol>> functionSymbols, Map<String, Integer> localSizes) {
+    public SemanticInfo(Map<String, Map<String, Symbol>> functionSymbols, Map<String, Integer> localSizes, SortedSet<String> strings) {
         this.functionSymbols = functionSymbols;
         this.localSizes = localSizes;
+        this.strings = strings;
     }
 
     public Symbol getSymbol(String functionName, String varName) {

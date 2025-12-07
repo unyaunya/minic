@@ -9,10 +9,6 @@ int obuf[256];
 int d[10];
 int rslt;
 
-//void main() {
-//    rslt = fib(1);
-//}
-
 /**
  * main routine
  */
@@ -33,25 +29,6 @@ void main() {
     }
 }
 
-/**
- * sub routine
- */
-//int plus(int a, int b) {
-//    return a + b;
-//}
-
-int fib(int n) {
-    if (n < 0) {
-        return -1;
-    }
-    if (n == 0) {
-        return 0;
-    } else if (n == 1) {
-        return 1;
-    } else {
-        return fib(n-1) + fib(n-2);
-    }
-}
 
 //void put(int n) {
 //}
