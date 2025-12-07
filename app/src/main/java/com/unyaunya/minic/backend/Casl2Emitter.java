@@ -10,6 +10,7 @@ import com.unyaunya.minic.semantics.StorageClass;
 import com.unyaunya.minic.semantics.Symbol;
 
 import java.util.*;
+import java.util.Map.Entry;
 
 public class Casl2Emitter {
     private final Casl2Builder builder = new Casl2Builder();
@@ -23,9 +24,16 @@ public class Casl2Emitter {
     private Casl2LabelGenerator lgWend = new Casl2LabelGenerator("WEND", "End of while statement");
     private Casl2LabelGenerator lgFor = new Casl2LabelGenerator("FOR", "For statement");
     private Casl2LabelGenerator lgNext = new Casl2LabelGenerator("NXT", "End of while statement");
+    private SortedMap<String, String> strings = new TreeMap<>();
 
     public String emit(Program program, SemanticInfo semanticInfo, int stackSize) {
         this.semanticInfo = semanticInfo;
+        // prepare labels for string literals
+        Casl2LabelGenerator lgStr = new Casl2LabelGenerator("STR", "String literal");
+        for (String s : this.semanticInfo.getStrings()) {
+            this.strings.put(s, lgStr.getNewLabel());
+        }
+        //
         builder.start().l("PRG").c("Program start");
         builder.lad(GR1, stackSize);
         builder.lad(GR7, "STACK", GR1).c("GR7 plays a role of ESP in x86");
@@ -44,6 +52,10 @@ public class Casl2Emitter {
         for (GlobalDecl g : globals) {
             int size = (g.getType().getArraySize() != null) ? g.getType().getArraySize() : 1;
             builder.ds(size).l(g.getName().toUpperCase());
+        }
+        for (Entry<String, String> entry : this.strings.entrySet()) {
+            String s = String.format("'%s'", entry.getKey());
+            builder.dc(s).l(entry.getValue());
         }
     }
 
@@ -170,14 +182,8 @@ public class Casl2Emitter {
     private void emitExpr(Expr e) {
         switch (e) {
             case IntLit lit -> builder.lad(GR1, lit.getValue());
-            case VarRef v -> {
-                Symbol symbol = this.semanticInfo.getSymbol(this.currentFunction.getName(), v.getName());
-                switch (symbol.getStorageClass()) {
-                case StorageClass.GLOBAL -> builder.ld(GR1, v.getName().toUpperCase());
-                case StorageClass.LOCAL ->  builder.ld(GR1, 65536 - symbol.getOffset(), GR6);
-                case StorageClass.PARAM ->  builder.ld(GR1, symbol.getOffset(), GR6);
-                }
-            }
+            case StringLit lit -> builder.lad(GR1, this.strings.get(lit.getValue()));
+            case VarRef v -> emitVarRef(GR1, v);
             case LvArrayElem v -> {
                 // put the index of the array in GR1
                 emitExpr(v.getExpr());
@@ -216,6 +222,15 @@ public class Casl2Emitter {
             default -> {
                 throw new MinicException(String.format("Unimplemented: %s", e.toString()));
             }
+        }
+    }
+
+    private void emitVarRef(String reg, VarRef v) {
+        Symbol symbol = this.semanticInfo.getSymbol(this.currentFunction.getName(), v.getName());
+        switch (symbol.getStorageClass()) {
+        case StorageClass.GLOBAL -> builder.ld(reg, v.getName().toUpperCase());
+        case StorageClass.LOCAL ->  builder.ld(reg, 65536 - symbol.getOffset(), GR6);
+        case StorageClass.PARAM ->  builder.ld(reg, symbol.getOffset(), GR6);
         }
     }
 

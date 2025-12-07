@@ -11,6 +11,20 @@ public class TypeSpec {
         return (arraySize == null) ? 1 : arraySize.intValue();
     }
 
+    public TypeSpec(BaseType baseType) {
+        this(baseType, 0);
+    }
+
+    public TypeSpec(BaseType baseType, int pointerDepth) {
+        this(baseType, pointerDepth, (Integer)null);
+    }
+
+    public TypeSpec(BaseType baseType, int pointerDepth, Integer arraySize) {
+        this.baseType = baseType;
+        this.pointerDepth = pointerDepth;
+        this.arraySize = arraySize;
+    }
+
     public String toString() {
         return String.format("%s%s", baseType.toString(), "*".repeat(pointerDepth));
     }
