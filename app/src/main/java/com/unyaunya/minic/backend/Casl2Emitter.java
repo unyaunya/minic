@@ -115,17 +115,28 @@ public class Casl2Emitter {
             emitMacro(m);
         } else if (s instanceof Block b) {
             emitBlock(b);
-        } else if (s instanceof VarDecl) {
-            // NOP;
+        } else if (s instanceof VarDecl v) {
+            emitVarDecl(v);
         } else {
             throw new MinicException(String.format("Unimplemented: %s", s.toString()));
         }
     }
 
+    private void emitVarDecl(VarDecl v) {
+        builder.comment(v.toString());
+        if (v.getInit() != null) {
+            emitAssign(new LvVar(v.getName()), v.getInit());
+        }
+    }
+
     private void emitAssign(Assign a) {
         builder.comment(a.toString());
-        emitExpr(a.getExpr());
-        if (a.getLvalue() instanceof LvVar v) {
+        emitAssign(a.getLvalue(), a.getExpr());
+    }
+
+    private void emitAssign(LValue lvalue, Expr expr) {
+        emitExpr(expr);
+        if (lvalue instanceof LvVar v) {
             Symbol symbol = this.semanticInfo.getSymbol(this.currentFunction.getName(), v.getName());
             String comment = String.format("Store %s", v.getName());
             switch (symbol.getStorageClass()) {
@@ -133,7 +144,7 @@ public class Casl2Emitter {
             case StorageClass.LOCAL ->  builder.st(GR1, 65536 - symbol.getOffset(), GR6).c(comment);
             case StorageClass.PARAM ->  builder.st(GR1, symbol.getOffset(), GR6).c(comment);
             }
-        } else if (a.getLvalue() instanceof LvArrayElem lv) {
+        } else if (lvalue instanceof LvArrayElem lv) {
             // evacuate the value to assign
             builder.push("0", GR1);
             // put the index of the array in GR1
@@ -211,7 +222,7 @@ public class Casl2Emitter {
     private void emitComparison(Binary.Op op) {
         String trueLabel = lgCompareTrue.getNewLabel();
         String endLabel = lgCompareEnd.getNewLabel();
-        builder.cpa(GR2, GR1);
+        builder.cpa(GR1, GR2);
         switch (op) {
         case LT -> builder.jmi(trueLabel);
         case GT -> builder.jpl(trueLabel);
@@ -221,9 +232,9 @@ public class Casl2Emitter {
         case NE -> builder.jnz(trueLabel);
         default -> throw new MinicException("unreachable");
         }
-        builder.lad(GR1, 0).c("False branch");
+        builder.xor(GR0, GR0).c("False branch");
         builder.jump(endLabel);
-        builder.lad(GR1, 1).l(trueLabel).c("True branch");
+        builder.ld(GR0, GR7).l(trueLabel).c("True branch");
         builder.nop().l(endLabel);
     }
 
@@ -235,7 +246,7 @@ public class Casl2Emitter {
             builder.jze(elseLabel);
             emitBlock(i.getThenBlock());
             builder.jump(endLabel);
-            builder.l(elseLabel);
+            builder.nop().l(elseLabel);
             emitBlock(i.getElseBlock());
         } else {
             builder.jze(endLabel);

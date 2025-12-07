@@ -37,8 +37,8 @@ block
     ;
 
 statement
-    : varDecl
-    | assignment
+    : varDecl ';'
+    | assignment ';'
     | expr ';'          // 関数呼び出しや式文
     | ifStmt
     | whileStmt
@@ -52,7 +52,7 @@ statement
 // Declarations
 // ----------------------
 varDecl
-    : typeSpec IDENT arraySize? ('=' expr)? ';'
+    : typeSpec IDENT arraySize? ('=' expr)?
     ;
 
 typeSpec
@@ -78,7 +78,7 @@ arraySize
 // Assignments
 // ----------------------
 assignment
-    : lvalue '=' expr ';'
+    : lvalue '=' expr
     ;
 
 lvalue

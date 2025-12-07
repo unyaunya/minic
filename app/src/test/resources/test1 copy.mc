@@ -6,34 +6,39 @@ int ibuf[256];
 int olen;
 int obuf[256];
 
+int d[10];
+int rslt;
+
+//void main() {
+//    rslt = fib(1);
+//}
 
 /**
  * main routine
  */
 void main() {
-    int d[10];
     int i;
-    int prev;
+    //int prev;
 
     d[0] = 1;
-    i = 1;    
-    while(i < 10) {
-        prev = d[i-1];
-        d[i] = plus(prev, prev);
+    i = 0;    
+    while(i <= 10) {
+        //prev = d[i-1];
+        d[i] = fib(i);
         i = i + 1;
-        olen = 2;
-        obuf[0] = 63+i;
-        obuf[1] = 32+i;
-        _out();
+        //olen = 2;
+        //obuf[0] = 64+i;
+        //obuf[1] = 32+i;
+        //_out();
     }
 }
 
 /**
  * sub routine
  */
-int plus(int a, int b) {
-    return a + b;
-}
+//int plus(int a, int b) {
+//    return a + b;
+//}
 
 int fib(int n) {
     if (n < 0) {
@@ -48,6 +53,5 @@ int fib(int n) {
     }
 }
 
-void put(int n) {
-
-}
+//void put(int n) {
+//}
