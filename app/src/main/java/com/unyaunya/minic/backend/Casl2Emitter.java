@@ -111,6 +111,8 @@ public class Casl2Emitter {
             emitFor(f);
         } else if (s instanceof ReturnStmt r) {
             emitReturn(r);
+        } else if (s instanceof MacroStmt m) {
+            emitMacro(m);
         } else if (s instanceof Block b) {
             emitBlock(b);
         } else if (s instanceof VarDecl) {
@@ -273,5 +275,14 @@ public class Casl2Emitter {
             builder.ld(GR0, GR1);
         }
         emitReturn();
+    }
+
+    private void emitMacro(MacroStmt m) {
+        builder.comment(m.toString());
+        if("_IN".equalsIgnoreCase(m.getOp())) {
+            builder.in("IBUF", "ILEN");
+        } else {
+            builder.out("OBUF", "OLEN");
+        }
     }
 }

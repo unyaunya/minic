@@ -130,6 +130,10 @@ public class SemanticAnalyzer {
             }
             if (f.getUpdate() != null) analyzeStmt(f.getUpdate(), expectedReturn);
             analyzeBlock(f.getBody(), expectedReturn);
+        } else if (s instanceof MacroStmt f) {
+            if (!List.of("_IN", "_OUT").contains(f.getOp().toUpperCase())) {
+                error(String.format("Illegal macro '%s'", f.getOp()));
+            }
         } else if (s instanceof ExprStmt e) {
             checkExpr(e.getExpr()); // ensure function calls are valid
         }

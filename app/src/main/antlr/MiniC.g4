@@ -45,6 +45,7 @@ statement
     | forStmt
     | block
     | returnStmt
+    | macroStmt
     ;
 
 // ----------------------
@@ -113,6 +114,15 @@ forUpdate
 returnStmt
     : 'return' expr? ';'
     ;
+
+// ----------------------
+// Macro of CASL2
+// ----------------------
+macroStmt
+    : MACRO '(' ')' ';'
+    ;
+
+
 // ----------------------
 // Expressions
 // ----------------------
@@ -139,4 +149,9 @@ VOID  : 'void' ;
 CHAR  : 'char' ;
 SHORT : 'short' ;
 INT   : 'int' ;
-IDENT : [a-zA-Z_][a-zA-Z_0-9]* ;
+IDENT : [a-zA-Z][a-zA-Z0-9]* ;
+
+// ----------------------
+// Lexer rules (for Macro)
+// ----------------------
+MACRO  : [_][a-zA-Z][a-zA-Z0-9]* ;

@@ -1,3 +1,9 @@
+int ilen;
+int ibuf[256];
+int olen;
+int obuf[256];
+
+
 void main() {
     int d[10];
     int i;
@@ -9,6 +15,9 @@ void main() {
         prev = d[i-1];
         d[i] = plus(prev, prev);
         i = i + 1;
+        olen = 1;
+        obuf[0] = 63+i;
+        _out();
     }
 }
 

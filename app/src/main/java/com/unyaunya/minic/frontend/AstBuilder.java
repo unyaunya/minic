@@ -108,6 +108,7 @@ public class AstBuilder extends MiniCBaseVisitor<Node> {
         if (ctx.forStmt() != null)    return visit(ctx.forStmt());
         if (ctx.block() != null)      return visit(ctx.block());
         if (ctx.returnStmt() != null) return visit(ctx.returnStmt());
+        if (ctx.macroStmt() != null)  return visit(ctx.macroStmt());
         if (ctx.expr() != null)       return new ExprStmt((Expr) visit(ctx.expr()));
         throw new IllegalStateException("Unknown statement alternative: " + ctx.getText());
     }
@@ -181,6 +182,12 @@ public class AstBuilder extends MiniCBaseVisitor<Node> {
     public Node visitForUpdate(MiniCParser.ForUpdateContext ctx) {
         return visit(ctx.assignment());
     }
+
+    @Override
+    public Node visitMacroStmt(MiniCParser.MacroStmtContext ctx) {
+        return new MacroStmt(ctx.MACRO().getText());
+    }
+
 
     // ----------------------
     // LValues
