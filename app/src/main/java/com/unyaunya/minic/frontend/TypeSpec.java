@@ -14,4 +14,17 @@ public class TypeSpec {
     public String toString() {
         return String.format("%s%s", baseType.toString(), "*".repeat(pointerDepth));
     }
+
+    public boolean equalType(TypeSpec t) {
+        if (!this.baseType.equals(t.getBaseType())) {
+            return false;
+        }
+        if (this.arraySize != null && t.getArraySize() == null) {
+            return false;
+        }
+        if (this.arraySize == null && t.getArraySize() != null) {
+            return false;
+        }
+        return true;
+    }
 }

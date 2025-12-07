@@ -1,9 +1,15 @@
+/*
+ * Variables for IN/OUT macro
+ */
 int ilen;
 int ibuf[256];
 int olen;
 int obuf[256];
 
 
+/**
+ * main routine
+ */
 void main() {
     int d[10];
     int i;
@@ -15,12 +21,33 @@ void main() {
         prev = d[i-1];
         d[i] = plus(prev, prev);
         i = i + 1;
-        olen = 1;
+        olen = 2;
         obuf[0] = 63+i;
+        obuf[1] = 32+i;
         _out();
     }
 }
 
+/**
+ * sub routine
+ */
 int plus(int a, int b) {
     return a + b;
+}
+
+int fib(int n) {
+    if (n < 0) {
+        return -1;
+    }
+    if (n == 0) {
+        return 0;
+    } else if (n == 1) {
+        return 1;
+    } else {
+        return fib(n-1) + fib(n-2);
+    }
+}
+
+void put(int n) {
+
 }

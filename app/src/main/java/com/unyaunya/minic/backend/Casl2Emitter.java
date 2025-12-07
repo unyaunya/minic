@@ -195,9 +195,13 @@ public class Casl2Emitter {
                 default -> emitComparison(bin.getOp());
                 }
             }
-            case Call c -> {
-                emitCall(c);
+            case UnaryNeg u -> {
+                emitExpr(u.getExpr());
+                builder.xor(GR0, GR0);
+                builder.suba(GR0, GR1);
+                builder.ld(GR1, GR0);
             }
+            case Call c -> emitCall(c);
             default -> {
                 throw new MinicException(String.format("Unimplemented: %s", e.toString()));
             }
