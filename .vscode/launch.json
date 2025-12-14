@@ -17,7 +17,15 @@
             "request": "launch",
             "mainClass": "com.unyaunya.minic.CompilerMain",
             "projectName": "app",
-            "args": ["${file}"]
+            "args": ["${file}", "build/rslt.txt"]
+        }
+        {
+            "type": "java",
+            "name": "CompilerMainErr",
+            "request": "launch",
+            "mainClass": "com.unyaunya.minic.CompilerMain",
+            "projectName": "app",
+            "args": []
         }
     ]
 }

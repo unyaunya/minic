@@ -1,7 +1,8 @@
 int rslt[16];
 
 void main() {
-    for(int i = 0; i < 8; i = i + 1) {
+    int i;
+    for(i = 0; i < 8; i = i + 1) {
         rslt[i] = fib(i);
     }
     while(i < 16) {

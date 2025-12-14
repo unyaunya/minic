@@ -35,9 +35,9 @@ public class Casl2Emitter {
         }
         //
         builder.start().l("PRG").c("Program start");
-        builder.lad(GR1, stackSize);
+        builder.lad(GR1, stackSize).c("Put stacksize to GR1");
         builder.lad(GR7, "STACK", GR1).c("GR7 plays a role of ESP in x86");
-        builder.ld(GR6, GR7).c("GR7 plays a role of EBP in x86");
+        builder.ld(GR6, GR7).c("GR6 plays a role of EBP in x86");
         for (FunctionDecl f : program.getFunctions()) {
             emitFunction(f);
         }
@@ -56,6 +56,7 @@ public class Casl2Emitter {
         for (Entry<String, String> entry : this.strings.entrySet()) {
             String s = String.format("'%s'", entry.getKey());
             builder.dc(s).l(entry.getValue());
+            builder.dc("0");
         }
     }
 
@@ -88,6 +89,7 @@ public class Casl2Emitter {
     }
 
     private void emitCall(Call c) {
+        builder.comment("%s(%s);", c.getName(), String.join(",", c.getArgs().stream().map(Object::toString).toList()));
         // Push arguments in reverse order
         for (Expr arg : c.getArgs().reversed()) {
             emitExpr(arg); // result in GR1
@@ -111,26 +113,17 @@ public class Casl2Emitter {
     }
 
     private void emitStmt(Stmt s) {
-        if (s instanceof Assign a) {
-            emitAssign(a);
-        } else if (s instanceof ExprStmt e) {
-            emitExpr(e.getExpr());
-        } else if (s instanceof IfStmt i) {
-            emitIf(i);
-        } else if (s instanceof WhileStmt w) {
-            emitWhile(w);
-        } else if (s instanceof ForStmt f) {
-            emitFor(f);
-        } else if (s instanceof ReturnStmt r) {
-            emitReturn(r);
-        } else if (s instanceof MacroStmt m) {
-            emitMacro(m);
-        } else if (s instanceof Block b) {
-            emitBlock(b);
-        } else if (s instanceof VarDecl v) {
-            emitVarDecl(v);
-        } else {
-            throw new MinicException(String.format("Unimplemented: %s", s.toString()));
+        switch (s) {
+          case Assign a ->     emitAssign(a);
+          case ExprStmt e ->   emitExpr(e.getExpr());
+          case IfStmt i ->     emitIf(i);
+          case WhileStmt w ->  emitWhile(w);
+          case ForStmt f ->    emitFor(f);
+          case ReturnStmt r -> emitReturn(r);
+          case MacroStmt m ->  emitMacro(m);
+          case Block b ->      emitBlock(b);
+          case VarDecl v ->    emitVarDecl(v);
+          default ->           throw new MinicException(String.format("Unimplemented: %s", s.toString()));
         }
     }
 
@@ -147,57 +140,97 @@ public class Casl2Emitter {
     }
 
     private void emitAssign(LValue lvalue, Expr expr) {
+        // calculate the value to assign
         emitExpr(expr);
-        if (lvalue instanceof LvVar v) {
-            Symbol symbol = this.semanticInfo.getSymbol(this.currentFunction.getName(), v.getName());
-            String comment = String.format("Store %s", v.getName());
-            switch (symbol.getStorageClass()) {
-            case StorageClass.GLOBAL -> builder.st(GR1, v.getName().toUpperCase()).c(comment);
-            case StorageClass.LOCAL ->  builder.st(GR1, 65536 - symbol.getOffset(), GR6).c(comment);
-            case StorageClass.PARAM ->  builder.st(GR1, symbol.getOffset(), GR6).c(comment);
+        // evacuate the value to assign
+        builder.push("0", GR1).c("Push rvalue");
+        // calculate the address to store
+        emitLValueAddress(lvalue);
+        // put the value to assign in GR1
+        builder.pop(GR1).c("Pop rvalue to GR1");
+        // store the assign to value
+        builder.st(GR1, "0", GR5).c("Store rvalue in the addr of lvalue");
+    }
+
+    private void emitLValueAddress(LValue lvalue) {
+        switch (lvalue) {
+            case LvVar v -> {
+                Symbol symbol = this.semanticInfo.getSymbol(this.currentFunction.getName(), v.getName());
+                if (symbol.isArray()) {
+                    throw new MinicException("Can't assign %s for it is not a variable.", v.getName());
+                }
+                emitSymbolAddress(v.getName(), symbol, GR5);
             }
-        } else if (lvalue instanceof LvArrayElem lv) {
-            // evacuate the value to assign
-            builder.push("0", GR1);
-            // put the index of the array in GR1
-            emitExpr(lv.getExpr());
-            // put the start address of the array in GR2
-            Symbol symbol = this.semanticInfo.getSymbol(this.currentFunction.getName(), lv.getName());
-            switch (symbol.getStorageClass()) {
-            case StorageClass.GLOBAL -> builder.lad(GR2, lv.getName().toUpperCase());
-            case StorageClass.LOCAL ->  builder.lad(GR2, 65536 - symbol.getOffset(), GR6);
-            case StorageClass.PARAM ->  builder.lad(GR2, symbol.getOffset(), GR6);
+            case LvPtrDeref p -> {
+                emitExpr(p.getExpr());
+                builder.lad(GR5, 0, GR1);        
             }
-            // put the address of the target element in GR2
-            builder.adda(GR2, GR1);
-            // put the value to assign in GR1
-            builder.pop(GR1);
-            // store the value to assign in the target element
-            builder.st(GR1, "0", GR2);
-        } else {
-            builder.comment("TODO: handle pointer assignment");
+            case LvArrayElem lv -> {
+                // put the index of the array in GR1
+                emitExpr(lv.getExpr());
+                // put the start address of the array in GR5
+                Symbol symbol = this.semanticInfo.getSymbol(this.currentFunction.getName(), lv.getName());
+                emitSymbolValue(lv.getName(), symbol, GR5);
+                // put the address of the target element in GR5
+                builder.adda(GR5, GR1);
+            }
+            default -> throw new MinicException(String.format("Unimplemented: %s", lvalue.toString()));
         }
+    }
+
+    private void emitSymbolAddress(String name, Symbol symbol, String reg) {
+        String comment = String.format("Put Address of %s to %s", name, reg);
+        switch (symbol.getStorageClass()) {
+        case StorageClass.GLOBAL -> builder.lad(reg, name.toUpperCase()).c(comment);
+        case StorageClass.LOCAL ->  builder.lad(reg, 65536 - symbol.getOffset(), GR6).c(comment);
+        case StorageClass.PARAM ->  builder.lad(reg, symbol.getOffset(), GR6).c(comment);
+        }
+    }
+
+    private void emitSymbolValue(String name, Symbol symbol, String reg) {
+        String comment = String.format("Put Value of %s to %s", name, reg);
+        if (symbol.isArray()) {
+            switch (symbol.getStorageClass()) {
+            case StorageClass.GLOBAL -> builder.lad(reg, name.toUpperCase()).c(comment);
+            case StorageClass.LOCAL ->  builder.lad(reg, 65536 - symbol.getOffset(), GR6).c(comment);
+            case StorageClass.PARAM ->  builder.lad(reg, symbol.getOffset(), GR6).c(comment);
+            }
+        } else {
+            switch (symbol.getStorageClass()) {
+            case StorageClass.GLOBAL -> builder.ld(reg, name.toUpperCase()).c(comment);
+            case StorageClass.LOCAL ->  builder.ld(reg, 65536 - symbol.getOffset(), GR6).c(comment);
+            case StorageClass.PARAM ->  builder.ld(reg, symbol.getOffset(), GR6).c(comment);
+            }
+        }
+    }
+
+    private void emitVarRef(String reg, String name) {
+        Symbol symbol = this.semanticInfo.getSymbol(this.currentFunction.getName(), name);
+        emitSymbolValue(name, symbol, reg);
+    }
+
+    private void emitPtrDeref(String reg, PtrDeref p) {
+        emitExpr(p.getExpr());
+        builder.ld(GR1, 0, GR1);
     }
 
     private void emitExpr(Expr e) {
         switch (e) {
-            case IntLit lit -> builder.lad(GR1, lit.getValue());
-            case StringLit lit -> builder.lad(GR1, this.strings.get(lit.getValue()));
-            case VarRef v -> emitVarRef(GR1, v);
-            case LvArrayElem v -> {
+            case IntLit lit -> builder.lad(GR1, lit.getValue()).c("Put the int lit to GR1");
+            case StringLit lit -> builder.lad(GR1, this.strings.get(lit.getValue())).c("Put the addr of string");
+            case VarRef v -> emitVarRef(GR1, v.getName());
+            case PtrDeref p -> emitPtrDeref(GR1, p);
+            case ArrayElem v -> {
+                builder.comment("    Calculate %s[%s]", v.getName(), v.getExpr());
                 // put the index of the array in GR1
                 emitExpr(v.getExpr());
-                // put the start address of the array in GR2
+                // put the start address of the array in GR5
                 Symbol symbol = this.semanticInfo.getSymbol(this.currentFunction.getName(), v.getName());
-                switch (symbol.getStorageClass()) {
-                case StorageClass.GLOBAL -> builder.lad(GR2, v.getName().toUpperCase());
-                case StorageClass.LOCAL ->  builder.lad(GR2, 65536 - symbol.getOffset(), GR6);
-                case StorageClass.PARAM ->  builder.lad(GR2, symbol.getOffset(), GR6);
-                }
-                // put the address of the target element in GR2
-                builder.adda(GR2, GR1);
+                emitSymbolValue(v.getName(), symbol, GR5);
+                // put the address of the target element in GR5
+                builder.adda(GR5, GR1).c("Add index to the address");
                 // put the value of the target element in GR1
-                builder.ld(GR1, "0", GR2);
+                builder.ld(GR1, "0", GR5).c("Put val to GR1");
             }
             case Binary bin -> {
                 emitExpr(bin.getRight());
@@ -219,18 +252,7 @@ public class Casl2Emitter {
                 builder.ld(GR1, GR0);
             }
             case Call c -> emitCall(c);
-            default -> {
-                throw new MinicException(String.format("Unimplemented: %s", e.toString()));
-            }
-        }
-    }
-
-    private void emitVarRef(String reg, VarRef v) {
-        Symbol symbol = this.semanticInfo.getSymbol(this.currentFunction.getName(), v.getName());
-        switch (symbol.getStorageClass()) {
-        case StorageClass.GLOBAL -> builder.ld(reg, v.getName().toUpperCase());
-        case StorageClass.LOCAL ->  builder.ld(reg, 65536 - symbol.getOffset(), GR6);
-        case StorageClass.PARAM ->  builder.ld(reg, symbol.getOffset(), GR6);
+            default -> throw new MinicException(String.format("Unimplemented: %s", e.toString()));
         }
     }
 
@@ -247,9 +269,9 @@ public class Casl2Emitter {
         case NE -> builder.jnz(trueLabel);
         default -> throw new MinicException("unreachable");
         }
-        builder.xor(GR0, GR0).c("False branch");
+        builder.xor(GR0, GR0).c("False branch:ZF on");
         builder.jump(endLabel);
-        builder.ld(GR0, GR7).l(trueLabel).c("True branch");
+        builder.ld(GR0, GR7).l(trueLabel).c("True branch:ZF off");
         builder.nop().l(endLabel);
     }
 

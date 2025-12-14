@@ -3,6 +3,8 @@ package com.unyaunya.minic.semantics;
 
 import com.unyaunya.minic.MinicException;
 import com.unyaunya.minic.frontend.*;
+import com.unyaunya.minic.frontend.Binary.Op;
+
 import java.util.*;
 
 /**
@@ -84,17 +86,15 @@ public class SemanticAnalyzer {
 
             if (v.getInit() != null) {
                 TypeSpec rhs = checkExpr(v.getInit());
-                if (!rhs.equals(v.getType())) {
-                    // TODO
-                    // error("Type mismatch in variable initialization: " + v.getName());
+                if (!rhs.isCompatible(v.getType())) {
+                    error("Type mismatch in variable initialization: " + v.getName());
                 }
             }
         } else if (s instanceof Assign a) {
             TypeSpec lhs = checkLValue(a.getLvalue());
             TypeSpec rhs = checkExpr(a.getExpr());
-            if (!lhs.equals(rhs)) {
-                // TODO
-                //error("Type mismatch in assignment");
+            if (!lhs.isCompatible(rhs)) {
+                error("Type mismatch in assignment");
             }
         } else if (s instanceof ReturnStmt r) {
             if (expectedReturn.getBaseType() != BaseType.VOID) {
@@ -102,9 +102,13 @@ public class SemanticAnalyzer {
                     error("Missing return value in non-void function");
                 } else {
                     TypeSpec retType = checkExpr(r.getValue());
-                    if (!retType.equalType(expectedReturn)) {
+                    if (!retType.isCompatible(expectedReturn)) {
                         error("Return type mismatch");
                     }
+                }
+            } else {
+                if (r.getValue() != null) {
+                    error("Can't return value in void function");
                 }
             }
         } else if (s instanceof IfStmt i) {
@@ -146,17 +150,11 @@ public class SemanticAnalyzer {
             return new TypeSpec(BaseType.INT);
         } else if (e instanceof StringLit s) {
             this.strings.add(s.getValue());
-            return new TypeSpec(BaseType.INT);
+            return new TypeSpec(BaseType.INT, 1);
         } else if (e instanceof VarRef v) {
             return lookup(v.getName()).getType();
         } else if (e instanceof Binary b) {
-            TypeSpec lt = checkExpr(b.getLeft());
-            TypeSpec rt = checkExpr(b.getRight());
-            if (!lt.equals(rt)) {
-                // TODO
-                // error("Type mismatch in binary expression");
-            }
-            return lt;
+            return checkBinary(b);
         } else if (e instanceof UnaryNeg u) {
             TypeSpec t = checkExpr(u.getExpr());
             if (t.getBaseType() != BaseType.INT) {
@@ -165,23 +163,20 @@ public class SemanticAnalyzer {
             return t;
         } else if (e instanceof AddressOf a) {
             Symbol sym = lookup(a.getName());
-            return new TypeSpec(sym.getType().getBaseType(), sym.getType().getPointerDepth() + 1);
-        } else if (e instanceof LvPtrDeref d) {
+            return sym.getType().getAddressType();
+        } else if (e instanceof PtrDeref d) {
             TypeSpec t = checkExpr(d.getExpr());
-            if (t.getPointerDepth() == 0) {
+            if (t.getEffectivePointerDepth() == 0) {
                 error("Cannot dereference non-pointer");
             }
-            return new TypeSpec(t.getBaseType(), t.getPointerDepth() - 1);
-        } else if (e instanceof LvArrayElem arr) {
+            return t.getDerefType();
+        } else if (e instanceof ArrayElem arr) {
             Symbol sym = lookup(arr.getName());
-            if (sym.getType().getArraySize() == 0) {
-                error("Not an array: " + arr.getName());
-            }
             TypeSpec idxType = checkExpr(arr.getExpr());
             if (idxType.getBaseType() != BaseType.INT) {
                 error("Array index must be int");
             }
-            return new TypeSpec(sym.getType().getBaseType(), sym.getType().getPointerDepth());
+            return sym.getType().getDerefType();
         } else if (e instanceof Call c) {
             FunctionDecl f = functions.get(c.getName());
             if (f == null) {
@@ -193,7 +188,7 @@ public class SemanticAnalyzer {
             for (int i = 0; i < c.getArgs().size(); i++) {
                 TypeSpec argType = checkExpr(c.getArgs().get(i));
                 TypeSpec paramType = f.getParams().get(i).getType();
-                if (!argType.equals(paramType)) {
+                if (!argType.isCompatible(paramType)) {
                     error("Argument type mismatch in call to " + c.getName());
                 }
             }
@@ -203,18 +198,62 @@ public class SemanticAnalyzer {
         return new TypeSpec(BaseType.INT); // fallback
     }
 
+    private TypeSpec checkBinary(Binary b) {
+        TypeSpec lt = checkExpr(b.getLeft());
+        TypeSpec rt = checkExpr(b.getRight());
+        switch (b.getOp()) {
+            case Op.ADD -> { return checkAdd(lt, rt); }
+            case Op.SUB -> { return checkSub(lt, rt); }
+            default -> {
+                if (!lt.isCompatible(rt)) {
+                    error("Type mismatch in binary expression");
+                }
+            }
+        }
+        return lt;
+    }
+
+     private TypeSpec checkAdd(TypeSpec lt, TypeSpec rt) {
+        if(lt.isSimpleInt()) {
+            return rt;
+        } else {
+            if(rt.isSimpleInt()) {
+                return lt;
+            } else {
+                error("Type mismatch in binary expression");
+                return new TypeSpec(BaseType.INT);
+            }
+        }
+    }
+
+     private TypeSpec checkSub(TypeSpec lt, TypeSpec rt) {
+        if(rt.isSimpleInt()) {
+            return lt;
+        } else {
+            if (lt.isCompatible(rt)) {
+                return new TypeSpec(BaseType.INT);
+            } else {
+                error("Type mismatch in binary expression");
+                return new TypeSpec(BaseType.INT);
+            }
+        }
+    }
+    
     private TypeSpec checkLValue(LValue lv) {
         if (lv instanceof LvVar v) {
             return lookup(v.getName()).getType();
         } else if (lv instanceof LvArrayElem arr) {
             Symbol sym = lookup(arr.getName());
-            return new TypeSpec(sym.getType().getBaseType(), sym.getType().getPointerDepth());
-        } else if (lv instanceof LvPtrDeref d) {
-            TypeSpec t = checkExpr(d.getExpr());
-            if (t.getPointerDepth() == 0) {
+            if (sym.getType().getEffectivePointerDepth() == 0) {
                 error("Cannot dereference non-pointer");
             }
-            return new TypeSpec(t.getBaseType(), t.getPointerDepth() - 1);
+            return sym.getType().getDerefType();
+        } else if (lv instanceof LvPtrDeref d) {
+            TypeSpec t = checkExpr(d.getExpr());
+            if (t.getEffectivePointerDepth() == 0) {
+                error("Cannot dereference non-pointer");
+            }
+            return t.getDerefType();
         }
         error("Unknown lvalue: " + lv);
         return new TypeSpec(BaseType.INT);

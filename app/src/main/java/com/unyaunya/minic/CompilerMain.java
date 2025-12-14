@@ -3,6 +3,7 @@
  */
 package com.unyaunya.minic;
 
+import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -22,17 +23,13 @@ import com.unyaunya.minic.semantics.SemanticAnalyzer;
 import com.unyaunya.minic.semantics.SemanticInfo;
 
 public class CompilerMain {
-    Logger logger = Logger.getLogger(getClass().getName());    
+    private Logger logger = Logger.getLogger(getClass().getName());    
     
-    public String getGreeting() {
-        return "Hello World!";
-    }
-
-    public static String compile(String path) throws IOException {
+    public String compile(String path) throws IOException {
         return compile(Paths.get(path));
     }
 
-    public static String compile(Path path) throws IOException {
+    public String compile(Path path) throws IOException {
         CharStream input = CharStreams.fromPath(path);
         MiniCLexer lexer = new MiniCLexer(input);
         CommonTokenStream tokens = new CommonTokenStream(lexer);
@@ -51,12 +48,25 @@ public class CompilerMain {
         return emitter.emit(ast, semanticInfo, 1024);
     }
 
-    public static void main(String[] args) throws IOException {
+     public void run(String[] args) throws IOException {
         if (args.length < 1) {
-            System.err.println("Usage: minic <source.mc>");
+            logger.severe("Usage: minic <source.mc>");
             System.exit(1);
         }
-        String asm = CompilerMain.compile(args[0]);
-        System.out.println(asm);
+        String asm = this.compile(args[0]);
+        if (args.length > 1) {
+            String filePath = args[1];
+            try (FileWriter writer = new FileWriter(filePath)) {
+                writer.write(asm);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        } else {
+            logger.info(asm);
+        }
+    }
+
+    public static void main(String[] args) throws IOException {
+        new CompilerMain().run(args);
     }
 }

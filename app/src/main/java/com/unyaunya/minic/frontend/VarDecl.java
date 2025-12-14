@@ -9,6 +9,10 @@ public class VarDecl implements Stmt {
     Expr init; // init may be null
 
     public String toString() {
-        return String.format("%s %s=%s;", type.toString(), name, init.toString());
+        if (this.init == null) {
+            return String.format("%s %s;", type.toString(), name);
+        } else {
+            return String.format("%s %s=%s;", type.toString(), name, init.toString());
+        }
     }
 }

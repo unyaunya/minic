@@ -33,7 +33,7 @@ public class Casl2Builder {
     public Casl2Builder ds(int size) { return addLine("DS", List.of(String.valueOf(size))); }
     public Casl2Builder dc(String value) { return addLine("DC", List.of(value)); }
     public Casl2Builder comment(String text) { lines.add(new AsmLine(null, null, null, text)); return this; }
-
+    public Casl2Builder comment(String fmt, Object... args) { return comment(String.format(fmt, args));}
     // -------------------------------
     // Machine Instructions
     // -------------------------------

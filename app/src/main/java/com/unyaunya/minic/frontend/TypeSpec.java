@@ -25,20 +25,27 @@ public class TypeSpec {
         this.arraySize = arraySize;
     }
 
-    public String toString() {
-        return String.format("%s%s", baseType.toString(), "*".repeat(pointerDepth));
+    public TypeSpec getAddressType() {
+        return new TypeSpec(this.getBaseType(), this.getEffectivePointerDepth() + 1);
     }
 
-    public boolean equalType(TypeSpec t) {
-        if (!this.baseType.equals(t.getBaseType())) {
-            return false;
-        }
-        if (this.arraySize != null && t.getArraySize() == null) {
-            return false;
-        }
-        if (this.arraySize == null && t.getArraySize() != null) {
-            return false;
-        }
-        return true;
+    public TypeSpec getDerefType() {
+        return new TypeSpec(this.getBaseType(), this.getEffectivePointerDepth() - 1);
+    }
+
+    public boolean isCompatible(TypeSpec t) {
+        return (this.baseType.equals(t.getBaseType()) && this.getEffectivePointerDepth() == t.getEffectivePointerDepth());
+    }
+
+    public boolean isSimpleInt() {
+        return (this.baseType.equals(BaseType.INT) && this.getEffectivePointerDepth() == 0);
+    }
+
+    public int getEffectivePointerDepth() {
+        return this.pointerDepth + ((this.arraySize == null) ? 0 : 1);
+    }
+
+    public String toString() {
+        return String.format("%s%s", baseType.toString(), "*".repeat(pointerDepth));
     }
 }
