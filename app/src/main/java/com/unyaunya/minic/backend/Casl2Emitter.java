@@ -56,6 +56,7 @@ public class Casl2Emitter {
         for (Entry<String, String> entry : this.strings.entrySet()) {
             String s = String.format("'%s'", entry.getKey());
             builder.dc(s).l(entry.getValue());
+            builder.dc("0");
         }
     }
 
@@ -192,21 +193,16 @@ public class Casl2Emitter {
         switch (e) {
             case IntLit lit -> builder.lad(GR1, lit.getValue());
             case StringLit lit -> builder.lad(GR1, this.strings.get(lit.getValue()));
-            case VarRef v -> emitVarRef(GR1, v);
+            case VarRef v -> emitVarRef(GR1, v.getName());
             case ArrayElem v -> {
                 // put the index of the array in GR1
                 emitExpr(v.getExpr());
-                // put the start address of the array in GR2
-                Symbol symbol = this.semanticInfo.getSymbol(this.currentFunction.getName(), v.getName());
-                switch (symbol.getStorageClass()) {
-                case StorageClass.GLOBAL -> builder.lad(GR2, v.getName().toUpperCase());
-                case StorageClass.LOCAL ->  builder.lad(GR2, 65536 - symbol.getOffset(), GR6);
-                case StorageClass.PARAM ->  builder.lad(GR2, symbol.getOffset(), GR6);
-                }
-                // put the address of the target element in GR2
-                builder.adda(GR2, GR1);
+                // put the start address of the array in GR5
+                emitVarRef(GR5, v.getName());
+                // put the address of the target element in GR5
+                builder.adda(GR5, GR1);
                 // put the value of the target element in GR1
-                builder.ld(GR1, "0", GR2);
+                builder.ld(GR1, "0", GR5);
             }
             case Binary bin -> {
                 emitExpr(bin.getRight());
@@ -232,13 +228,17 @@ public class Casl2Emitter {
         }
     }
 
-    private void emitVarRef(String reg, VarRef v) {
-        Symbol symbol = this.semanticInfo.getSymbol(this.currentFunction.getName(), v.getName());
-        switch (symbol.getStorageClass()) {
-        case StorageClass.GLOBAL -> builder.ld(reg, v.getName().toUpperCase());
-        case StorageClass.LOCAL ->  builder.ld(reg, 65536 - symbol.getOffset(), GR6);
-        case StorageClass.PARAM ->  builder.ld(reg, symbol.getOffset(), GR6);
-        }
+    private void emitVarRef(String reg, String name) {
+        Symbol symbol = this.semanticInfo.getSymbol(this.currentFunction.getName(), name);
+        if (symbol.isArray()) {
+            emitSymbolAddress(name, symbol, reg);
+        } else {
+            switch (symbol.getStorageClass()) {
+            case StorageClass.GLOBAL -> builder.ld(reg, name.toUpperCase());
+            case StorageClass.LOCAL ->  builder.ld(reg, 65536 - symbol.getOffset(), GR6);
+            case StorageClass.PARAM ->  builder.ld(reg, symbol.getOffset(), GR6);
+            }
+        } 
     }
 
     private void emitComparison(Binary.Op op) {

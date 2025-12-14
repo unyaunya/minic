@@ -6,6 +6,8 @@ int ibuf[256];
 int olen;
 int obuf[256];
 
+int gp[5];
+
 /**
  * main routine
  */
@@ -24,7 +26,14 @@ void main() {
     obuf[5] = '!';
     obuf[6] = '\0';
     olen = strlen(obuf);
+    p[0] = strlen(s1);
+    p[1] = strlen(s2);
+    p[2] = strlen(s3);
     _out();
+    int i;
+    for(i = 0; i < 5; i=i+1) {
+        gp[i] = p[i];
+    }
 }
 
 int strlen(int s) {

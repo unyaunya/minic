@@ -12,4 +12,8 @@ public class Symbol {
     TypeSpec type;
     StorageClass storageClass;
     int offset; // For PARAM and LOCAL: offset from GR7
+
+    public boolean isArray() {
+        return this.getType().getArraySize() != null;
+    }
 }
