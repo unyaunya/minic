@@ -148,26 +148,30 @@ public class Casl2Emitter {
 
     private void emitAssign(LValue lvalue, Expr expr) {
         emitExpr(expr);
-        if (lvalue instanceof LvVar v) {
-            Symbol symbol = this.semanticInfo.getSymbol(this.currentFunction.getName(), v.getName());
-            emitSymbolAddress(v.getName(), symbol, GR5);
-            builder.st(GR1, "0", GR5);
-        } else if (lvalue instanceof LvArrayElem lv) {
-            // evacuate the value to assign
-            builder.push("0", GR1);
-            // put the index of the array in GR1
-            emitExpr(lv.getExpr());
-            // put the start address of the array in GR5
-            Symbol symbol = this.semanticInfo.getSymbol(this.currentFunction.getName(), lv.getName());
-            emitSymbolAddress(lv.getName(), symbol, GR5);
-            // put the address of the target element in GR5
-            builder.adda(GR5, GR1);
-            // put the value to assign in GR1
-            builder.pop(GR1);
-            // store the value to assign in the target element
-            builder.st(GR1, "0", GR5);
-        } else {
-            builder.comment("TODO: handle pointer assignment");
+        switch (lvalue) {
+          case LvVar v -> {
+              Symbol symbol = this.semanticInfo.getSymbol(this.currentFunction.getName(), v.getName());
+              emitSymbolAddress(v.getName(), symbol, GR5);
+              builder.st(GR1, "0", GR5);
+          }
+          case LvArrayElem lv -> {
+              // evacuate the value to assign
+              builder.push("0", GR1);
+              // put the index of the array in GR1
+              emitExpr(lv.getExpr());
+              // put the start address of the array in GR5
+              Symbol symbol = this.semanticInfo.getSymbol(this.currentFunction.getName(), lv.getName());
+              emitSymbolAddress(lv.getName(), symbol, GR5);
+              // put the address of the target element in GR5
+              builder.adda(GR5, GR1);
+              // put the value to assign in GR1
+              builder.pop(GR1);
+              // store the value to assign in the target element
+              builder.st(GR1, "0", GR5);
+          }
+          default -> {
+              builder.comment("TODO: handle pointer assignment");
+          }
         }
     }
 
