@@ -184,7 +184,7 @@ public class Casl2Emitter {
             case IntLit lit -> builder.lad(GR1, lit.getValue());
             case StringLit lit -> builder.lad(GR1, this.strings.get(lit.getValue()));
             case VarRef v -> emitVarRef(GR1, v);
-            case LvArrayElem v -> {
+            case ArrayElem v -> {
                 // put the index of the array in GR1
                 emitExpr(v.getExpr());
                 // put the start address of the array in GR2

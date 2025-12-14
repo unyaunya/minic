@@ -259,14 +259,12 @@ public class AstBuilder extends MiniCBaseVisitor<Node> {
 
     @Override
     public Node visitDeref(MiniCParser.DerefContext ctx) {
-        // As an expression, deref can reuse the same node class as lvalue deref if it implements Expr
-        return new LvPtrDeref((Expr) visit(ctx.expr()));
+        return new PtrDeref((Expr) visit(ctx.expr()));
     }
 
     @Override
     public Node visitArrayAccess(MiniCParser.ArrayAccessContext ctx) {
-        // As an expression, array access can reuse the lvalue class if it implements Expr
-        return new LvArrayElem(ctx.IDENT().getText(), (Expr) visit(ctx.expr()));
+        return new ArrayElem(ctx.IDENT().getText(), (Expr) visit(ctx.expr()));
     }
 
     @Override
@@ -429,6 +427,7 @@ public class AstBuilder extends MiniCBaseVisitor<Node> {
 
         char esc = inner.charAt(1);
         switch (esc) {
+            case '0':  return '\0';
             case 'n':  return '\n';
             case 'r':  return '\r';
             case 't':  return '\t';

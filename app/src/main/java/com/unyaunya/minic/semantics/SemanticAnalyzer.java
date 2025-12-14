@@ -166,17 +166,14 @@ public class SemanticAnalyzer {
         } else if (e instanceof AddressOf a) {
             Symbol sym = lookup(a.getName());
             return new TypeSpec(sym.getType().getBaseType(), sym.getType().getPointerDepth() + 1);
-        } else if (e instanceof LvPtrDeref d) {
+        } else if (e instanceof PtrDeref d) {
             TypeSpec t = checkExpr(d.getExpr());
             if (t.getPointerDepth() == 0) {
                 error("Cannot dereference non-pointer");
             }
             return new TypeSpec(t.getBaseType(), t.getPointerDepth() - 1);
-        } else if (e instanceof LvArrayElem arr) {
+        } else if (e instanceof ArrayElem arr) {
             Symbol sym = lookup(arr.getName());
-            if (sym.getType().getArraySize() == 0) {
-                error("Not an array: " + arr.getName());
-            }
             TypeSpec idxType = checkExpr(arr.getExpr());
             if (idxType.getBaseType() != BaseType.INT) {
                 error("Array index must be int");
@@ -193,7 +190,7 @@ public class SemanticAnalyzer {
             for (int i = 0; i < c.getArgs().size(); i++) {
                 TypeSpec argType = checkExpr(c.getArgs().get(i));
                 TypeSpec paramType = f.getParams().get(i).getType();
-                if (!argType.equals(paramType)) {
+                if (!argType.equalType(paramType)) {
                     error("Argument type mismatch in call to " + c.getName());
                 }
             }

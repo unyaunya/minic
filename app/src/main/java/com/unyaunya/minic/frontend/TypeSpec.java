@@ -33,12 +33,14 @@ public class TypeSpec {
         if (!this.baseType.equals(t.getBaseType())) {
             return false;
         }
+        /*
         if (this.arraySize != null && t.getArraySize() == null) {
             return false;
         }
         if (this.arraySize == null && t.getArraySize() != null) {
             return false;
         }
+        */
         return true;
     }
 }
