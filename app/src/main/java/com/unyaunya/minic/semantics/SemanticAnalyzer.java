@@ -106,6 +106,10 @@ public class SemanticAnalyzer {
                         error("Return type mismatch");
                     }
                 }
+            } else {
+                if (r.getValue() != null) {
+                    error("Can't return value in void function");
+                }
             }
         } else if (s instanceof IfStmt i) {
             TypeSpec condType = checkExpr(i.getCond());
