@@ -220,6 +220,13 @@ public class Casl2Emitter {
             case StringLit lit -> builder.lad(GR1, this.strings.get(lit.getValue())).c("Put the addr of string");
             case VarRef v -> emitVarRef(GR1, v.getName());
             case PtrDeref p -> emitPtrDeref(GR1, p);
+            case AddressOf a -> {
+                Symbol symbol = this.semanticInfo.getSymbol(this.currentFunction.getName(), a.getName());
+                emitSymbolAddress(a.getName(), symbol, GR1);
+            }
+            case Cast c -> {
+                // NOP;
+            }
             case ArrayElem v -> {
                 builder.comment("    Calculate %s[%s]", v.getName(), v.getExpr());
                 // put the index of the array in GR1

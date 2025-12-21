@@ -170,6 +170,8 @@ public class SemanticAnalyzer {
                 error("Cannot dereference non-pointer");
             }
             return t.getDerefType();
+        } else if (e instanceof Cast d) {
+            return d.getType();
         } else if (e instanceof ArrayElem arr) {
             Symbol sym = lookup(arr.getName());
             TypeSpec idxType = checkExpr(arr.getExpr());
