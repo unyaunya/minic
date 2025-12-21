@@ -6,32 +6,19 @@ int ibuf[256];
 int olen;
 int obuf[256];
 
-int gp[5];
-
 /**
  * main routine
  */
 void main() {
     putn(12345);
-    int p[5];
-    int* s1 = "Hello World!";
-    int* s2 = "Welcome!";
-    int* s3 = obuf;
-    int ch = *s1;
-
-    p[0] = ch;
-    olen = 6;
-    puts("Hello");
-    puts(s1);
-    puts(s2);
-    olen = strlen(obuf);
-    p[0] = strlen(s1);
-    p[1] = strlen(s2);
-    p[2] = strlen(s3);
+    int* s[3];
+    s[0] = "Hello World!";
+    s[1] = "Welcome!";
+    s[2] = "Jumbo!";
     int i;
-    for(i = 0; i < 5; i=i+1) {
-        gp[i] = p[i];
-        putn(gp[i]);
+    for(i = 0; i < 3; i=i+1) {
+        puts(s[i]);
+        putn(strlen(s[i]));
     }
 }
 
@@ -46,7 +33,7 @@ int strlen(int* s) {
 int* strcpy(int* dst, int* src) {
     int n = 0;
     while(src[n] != '\0') {
-        dst[n] = *(src+n);
+        *(dst+n) = *(src+n);
         n = n + 1;
     }
     dst[n] = '\0';

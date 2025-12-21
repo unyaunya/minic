@@ -113,26 +113,17 @@ public class Casl2Emitter {
     }
 
     private void emitStmt(Stmt s) {
-        if (s instanceof Assign a) {
-            emitAssign(a);
-        } else if (s instanceof ExprStmt e) {
-            emitExpr(e.getExpr());
-        } else if (s instanceof IfStmt i) {
-            emitIf(i);
-        } else if (s instanceof WhileStmt w) {
-            emitWhile(w);
-        } else if (s instanceof ForStmt f) {
-            emitFor(f);
-        } else if (s instanceof ReturnStmt r) {
-            emitReturn(r);
-        } else if (s instanceof MacroStmt m) {
-            emitMacro(m);
-        } else if (s instanceof Block b) {
-            emitBlock(b);
-        } else if (s instanceof VarDecl v) {
-            emitVarDecl(v);
-        } else {
-            throw new MinicException(String.format("Unimplemented: %s", s.toString()));
+        switch (s) {
+          case Assign a ->     emitAssign(a);
+          case ExprStmt e ->   emitExpr(e.getExpr());
+          case IfStmt i ->     emitIf(i);
+          case WhileStmt w ->  emitWhile(w);
+          case ForStmt f ->    emitFor(f);
+          case ReturnStmt r -> emitReturn(r);
+          case MacroStmt m ->  emitMacro(m);
+          case Block b ->      emitBlock(b);
+          case VarDecl v ->    emitVarDecl(v);
+          default ->           throw new MinicException(String.format("Unimplemented: %s", s.toString()));
         }
     }
 
@@ -264,7 +255,6 @@ public class Casl2Emitter {
             default -> throw new MinicException(String.format("Unimplemented: %s", e.toString()));
         }
     }
-
 
     private void emitComparison(Binary.Op op) {
         String trueLabel = lgCompareTrue.getNewLabel();
