@@ -134,6 +134,7 @@ expr
     | '-' expr                           #unaryNeg
     | '&' IDENT                          #addressOf
     | '*' expr                           #deref
+    | '(' typeSpec ')' expr              #cast
     | IDENT '[' expr ']'                 #arrayAccess
     | IDENT '(' (expr (',' expr)*)? ')'  #funcCall
     | IDENT                              #varRef

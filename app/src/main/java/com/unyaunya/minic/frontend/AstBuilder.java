@@ -263,6 +263,11 @@ public class AstBuilder extends MiniCBaseVisitor<Node> {
     }
 
     @Override
+    public Node visitCast(MiniCParser.CastContext ctx) {
+        return new Cast(toTypeSpec(ctx.typeSpec()), (Expr) visit(ctx.expr()));
+    }
+
+    @Override
     public Node visitArrayAccess(MiniCParser.ArrayAccessContext ctx) {
         return new ArrayElem(ctx.IDENT().getText(), (Expr) visit(ctx.expr()));
     }
