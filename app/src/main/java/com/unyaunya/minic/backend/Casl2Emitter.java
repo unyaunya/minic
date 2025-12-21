@@ -89,7 +89,7 @@ public class Casl2Emitter {
     }
 
     private void emitCall(Call c) {
-        builder.comment("%s(%s);", c.getName(), String.join(",", c.getArgs().stream().map(a -> {return a.toString();}).toList()));
+        builder.comment("%s(%s);", c.getName(), String.join(",", c.getArgs().stream().map(Object::toString).toList()));
         // Push arguments in reverse order
         for (Expr arg : c.getArgs().reversed()) {
             emitExpr(arg); // result in GR1
@@ -170,6 +170,10 @@ public class Casl2Emitter {
                 }
                 emitSymbolAddress(v.getName(), symbol, GR5);
             }
+            case LvPtrDeref p -> {
+                emitExpr(p.getExpr());
+                builder.lad(GR5, 0, GR1);        
+            }
             case LvArrayElem lv -> {
                 // put the index of the array in GR1
                 emitExpr(lv.getExpr());
@@ -179,7 +183,6 @@ public class Casl2Emitter {
                 // put the address of the target element in GR5
                 builder.adda(GR5, GR1);
             }
-            //TODO: handle pointer assignment
             default -> throw new MinicException(String.format("Unimplemented: %s", lvalue.toString()));
         }
     }
@@ -210,11 +213,22 @@ public class Casl2Emitter {
         }
     }
 
+    private void emitVarRef(String reg, String name) {
+        Symbol symbol = this.semanticInfo.getSymbol(this.currentFunction.getName(), name);
+        emitSymbolValue(name, symbol, reg);
+    }
+
+    private void emitPtrDeref(String reg, PtrDeref p) {
+        emitExpr(p.getExpr());
+        builder.ld(GR1, 0, GR1);
+    }
+
     private void emitExpr(Expr e) {
         switch (e) {
             case IntLit lit -> builder.lad(GR1, lit.getValue()).c("Put the int lit to GR1");
             case StringLit lit -> builder.lad(GR1, this.strings.get(lit.getValue())).c("Put the addr of string");
             case VarRef v -> emitVarRef(GR1, v.getName());
+            case PtrDeref p -> emitPtrDeref(GR1, p);
             case ArrayElem v -> {
                 builder.comment("    Calculate %s[%s]", v.getName(), v.getExpr());
                 // put the index of the array in GR1
@@ -251,10 +265,6 @@ public class Casl2Emitter {
         }
     }
 
-    private void emitVarRef(String reg, String name) {
-        Symbol symbol = this.semanticInfo.getSymbol(this.currentFunction.getName(), name);
-        emitSymbolValue(name, symbol, reg);
-    }
 
     private void emitComparison(Binary.Op op) {
         String trueLabel = lgCompareTrue.getNewLabel();

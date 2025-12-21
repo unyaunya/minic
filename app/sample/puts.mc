@@ -14,10 +14,10 @@ int gp[5];
 void main() {
     putn(12345);
     int p[5];
-    int s1 = "Hello World!";
-    int s2 = "Welcome!";
-    int s3 = obuf;
-    int ch = s1[0];
+    int* s1 = "Hello World!";
+    int* s2 = "Welcome!";
+    int* s3 = obuf;
+    int ch = *s1;
 
     p[0] = ch;
     olen = 6;
@@ -35,7 +35,7 @@ void main() {
     }
 }
 
-int strlen(int s) {
+int strlen(int* s) {
     int n = 0;
     while(s[n] != '\0') {
         n = n + 1;
@@ -43,17 +43,17 @@ int strlen(int s) {
     return n;
 }
 
-int strcpy(int dst, int src) {
+int* strcpy(int* dst, int* src) {
     int n = 0;
     while(src[n] != '\0') {
-        dst[n] = src[n];
+        dst[n] = *(src+n);
         n = n + 1;
     }
     dst[n] = '\0';
     return dst + n;
 }
 
-void puts(int s) {
+void puts(int* s) {
     olen = strcpy(obuf, s) - obuf;
     _out();
 }
@@ -63,7 +63,7 @@ void putn(int n) {
     _out();
 }
 
-int sputn(int dst, int n) {
+int* sputn(int* dst, int n) {
     int buff[7];
     int idx;
     int sgn;
@@ -78,7 +78,7 @@ int sputn(int dst, int n) {
     } else {
         if(n < 0) {
             sgn = 1;
-            dst[0] = '-';
+            *dst = '-';
             dst = dst + 1;
             n = -n;
         } else {
@@ -92,7 +92,7 @@ int sputn(int dst, int n) {
                 lz = 0;
             }
             if (lz == 0) {
-                dst[0] = '0' + ch;
+                *dst = '0' + ch;
                 dst = dst + 1;
             }
             n = n - mul(d, ch);
