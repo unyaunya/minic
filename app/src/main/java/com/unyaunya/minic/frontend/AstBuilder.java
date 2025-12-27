@@ -1,39 +1,35 @@
 // frontend/AstBuilder.java
 package com.unyaunya.minic.frontend;
 
+import java.util.List;
+
 import com.unyaunya.minic.Location;
 import com.unyaunya.minic.parser.*;
 import com.unyaunya.minic.parser.MiniCParser.ArraySizeContext;
 import com.unyaunya.minic.parser.MiniCParser.StatementContext;
+import com.unyaunya.minic.preprocess.Preprocessor;
+import com.unyaunya.minic.preprocess.Preprocessor.FileRegion;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
 import java.util.*;
 
 public class AstBuilder extends MiniCBaseVisitor<Node> {
-    private final String filename;
+    private final Preprocessor.Result preprocessed;
 
-    public AstBuilder(String filename) {
-        this.filename = filename;
-    }
-
-    public AstBuilder() {
-        this.filename = null;
+    public AstBuilder(Preprocessor.Result preprocessed) {
+        this.preprocessed = preprocessed;
     }
 
     // ----------------------
     // Helper to extract location from ANTLR context
     // ----------------------
     private Location getLocation(ParserRuleContext ctx) {
-        if (ctx == null) return new Location(filename, 0);
-        int line = ctx.getStart().getLine();
-        return new Location(filename, line);
+        return this.preprocessed.getLocation(ctx.getStart().getLine());
     }
 
     private Location getLocation(TerminalNode node) {
-        if (node == null) return new Location(filename, 0);
-        int line = node.getSymbol().getLine();
-        return new Location(filename, line);
+        return this.preprocessed.getLocation(node.getSymbol().getLine());
     }
 
     // ----------------------

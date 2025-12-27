@@ -19,6 +19,7 @@ import com.unyaunya.minic.frontend.Program;
 import com.unyaunya.minic.parser.MiniCLexer;
 import com.unyaunya.minic.parser.MiniCParser;
 import com.unyaunya.minic.parser.MiniCParser.ProgramContext;
+import com.unyaunya.minic.preprocess.Preprocessor;
 import com.unyaunya.minic.semantics.SemanticAnalyzer;
 import com.unyaunya.minic.semantics.SemanticInfo;
 
@@ -30,7 +31,11 @@ public class CompilerMain {
     }
 
     public String compile(Path path) throws IOException {
-        CharStream input = CharStreams.fromPath(path);
+        // Preprocess includes so we can map combined line numbers back to filenames
+        Preprocessor pre = new com.unyaunya.minic.preprocess.Preprocessor();
+        Preprocessor.Result res = pre.preprocess(path);
+
+        CharStream input = CharStreams.fromString(res.content);
         MiniCLexer lexer = new MiniCLexer(input);
         CommonTokenStream tokens = new CommonTokenStream(lexer);
         tokens.fill();
@@ -38,7 +43,7 @@ public class CompilerMain {
 
         ProgramContext tree = parser.program(); // entry rule
 
-        AstBuilder builder = new AstBuilder(path.toString());
+        AstBuilder builder = new AstBuilder(res);
         Program ast = (Program) builder.visit(tree);
 
         SemanticAnalyzer sema = new SemanticAnalyzer(path.toString());
