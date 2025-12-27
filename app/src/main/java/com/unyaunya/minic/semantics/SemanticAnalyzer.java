@@ -40,7 +40,7 @@ public class SemanticAnalyzer {
         // Collect function signatures
         for (FunctionDecl f : program.getFunctions()) {
             if (functions.containsKey(f.getName())) {
-                error("Duplicate function: " + f.getName());
+                error(f.getLocation(), "Duplicate function: " + f.getName());
             }
             functions.put(f.getName(), f);
         }
@@ -48,7 +48,7 @@ public class SemanticAnalyzer {
         // Global scope
         enterScope();
         for (GlobalDecl g : program.getGlobals()) {
-            declare(g.getName(), new Symbol(g.getType(), StorageClass.GLOBAL, 0));
+            declare(g.getName(), new Symbol(g.getType(), StorageClass.GLOBAL, 0), g.getLocation());
         }
 
         // Analyze each function
@@ -69,7 +69,7 @@ public class SemanticAnalyzer {
         int paramOffset = 0;
         for (Param p : f.getParams()) {
             Symbol sym = new Symbol(p.getType(), StorageClass.PARAM, ++paramOffset);
-            declare(p.getName(), sym);
+            declare(p.getName(), sym, p.getLocation());
         }
 
         // Analyze body and collect locals
@@ -92,39 +92,39 @@ public class SemanticAnalyzer {
         if (s instanceof VarDecl v) {
             localVarOffset += v.getType().getSize(); // assume getSize() returns word count
             Symbol sym = new Symbol(v.getType(), StorageClass.LOCAL, localVarOffset);
-            declare(v.getName(), sym);
+            declare(v.getName(), sym, v.getLocation());
 
             if (v.getInit() != null) {
                 TypeSpec rhs = checkExpr(v.getInit());
                 if (!rhs.isCompatible(v.getType())) {
-                    error("Type mismatch in variable initialization: " + v.getName());
+                    error(v.getLocation(), "Type mismatch in variable initialization: " + v.getName());
                 }
             }
         } else if (s instanceof Assign a) {
             TypeSpec lhs = checkLValue(a.getLvalue());
             TypeSpec rhs = checkExpr(a.getExpr());
             if (!lhs.isCompatible(rhs)) {
-                error("Type mismatch in assignment");
+                error(a.getLocation(), "Type mismatch in assignment");
             }
         } else if (s instanceof ReturnStmt r) {
             if (expectedReturn.getBaseType() != BaseType.VOID) {
                 if (r.getValue() == null) {
-                    error("Missing return value in non-void function");
+                    error(r.getLocation(), "Missing return value in non-void function");
                 } else {
                     TypeSpec retType = checkExpr(r.getValue());
                     if (!retType.isCompatible(expectedReturn)) {
-                        error("Return type mismatch");
+                        error(r.getLocation(), "Return type mismatch");
                     }
                 }
             } else {
                 if (r.getValue() != null) {
-                    error("Can't return value in void function");
+                    error(r.getLocation(), "Can't return value in void function");
                 }
             }
         } else if (s instanceof IfStmt i) {
             TypeSpec condType = checkExpr(i.getCond());
             if (condType.getBaseType() != BaseType.INT) {
-                error("Condition in if must be int");
+                error(i.getLocation(), "Condition in if must be int");
             }
             analyzeBlock(i.getThenBlock(), expectedReturn);
             if (i.getElseBlock() != null) {
@@ -133,7 +133,7 @@ public class SemanticAnalyzer {
         } else if (s instanceof WhileStmt w) {
             TypeSpec condType = checkExpr(w.getCond());
             if (condType.getBaseType() != BaseType.INT) {
-                error("Condition in while must be int");
+                error(w.getLocation(),"Condition in while must be int");
             }
             analyzeBlock(w.getBody(), expectedReturn);
         } else if (s instanceof ForStmt f) {
@@ -141,14 +141,14 @@ public class SemanticAnalyzer {
             if (f.getCond() != null) {
                 TypeSpec condType = checkExpr(f.getCond());
                 if (condType.getBaseType() != BaseType.INT) {
-                    error("Condition in for must be int");
+                    error(f.getLocation(),"Condition in for must be int");
                 }
             }
             if (f.getUpdate() != null) analyzeStmt(f.getUpdate(), expectedReturn);
             analyzeBlock(f.getBody(), expectedReturn);
         } else if (s instanceof MacroStmt f) {
             if (!List.of("_IN", "_OUT").contains(f.getOp().toUpperCase())) {
-                error(String.format("Illegal macro '%s'", f.getOp()));
+                error(f.getLocation(),"Illegal macro '%s'", f.getOp());
             }
         } else if (s instanceof ExprStmt e) {
             checkExpr(e.getExpr()); // ensure function calls are valid
@@ -168,7 +168,7 @@ public class SemanticAnalyzer {
         } else if (e instanceof UnaryNeg u) {
             TypeSpec t = checkExpr(u.getExpr());
             if (t.getBaseType() != BaseType.INT) {
-                error("Unary negation only valid on int");
+                error(u.getLocation(),"Unary negation only valid on int");
             }
             return t;
         } else if (e instanceof AddressOf a) {
@@ -177,7 +177,7 @@ public class SemanticAnalyzer {
         } else if (e instanceof PtrDeref d) {
             TypeSpec t = checkExpr(d.getExpr());
             if (t.getEffectivePointerDepth() == 0) {
-                error("Cannot dereference non-pointer");
+                error(d.getLocation(),"Cannot dereference non-pointer");
             }
             return t.getDerefType();
         } else if (e instanceof Cast d) {
@@ -186,27 +186,27 @@ public class SemanticAnalyzer {
             Symbol sym = lookup(arr.getName(), arr.getLocation());
             TypeSpec idxType = checkExpr(arr.getExpr());
             if (idxType.getBaseType() != BaseType.INT) {
-                error("Array index must be int");
+                error(arr.getLocation(), "Array index must be int");
             }
             return sym.getType().getDerefType();
         } else if (e instanceof Call c) {
             FunctionDecl f = functions.get(c.getName());
             if (f == null) {
-                error("Call to undeclared function: " + c.getName());
+                error(c.getLocation(), "Call to undeclared function: " + c.getName());
             }
             if (c.getArgs().size() != f.getParams().size()) {
-                error("Argument count mismatch in call to " + c.getName());
+                error(c.getLocation(), "Argument count mismatch in call to " + c.getName());
             }
             for (int i = 0; i < c.getArgs().size(); i++) {
                 TypeSpec argType = checkExpr(c.getArgs().get(i));
                 TypeSpec paramType = f.getParams().get(i).getType();
                 if (!argType.isCompatible(paramType)) {
-                    error("Argument type mismatch in call to " + c.getName());
+                    error(c.getLocation(), "Argument type mismatch in call to " + c.getName());
                 }
             }
             return f.getReturnType();
         }
-        error("Unknown expression type: " + e);
+        error(e.getLocation(), "Unknown expression type: " + e);
         return new TypeSpec(BaseType.INT); // fallback
     }
 
@@ -214,38 +214,38 @@ public class SemanticAnalyzer {
         TypeSpec lt = checkExpr(b.getLeft());
         TypeSpec rt = checkExpr(b.getRight());
         switch (b.getOp()) {
-            case Op.ADD -> { return checkAdd(lt, rt); }
-            case Op.SUB -> { return checkSub(lt, rt); }
+            case Op.ADD -> { return checkAdd(lt, rt, b.getLocation()); }
+            case Op.SUB -> { return checkSub(lt, rt, b.getLocation()); }
             default -> {
                 if (!lt.isCompatible(rt)) {
-                    error("Type mismatch in binary expression");
+                    error(b.getLocation(), "Type mismatch in binary expression");
                 }
             }
         }
         return lt;
     }
 
-     private TypeSpec checkAdd(TypeSpec lt, TypeSpec rt) {
+     private TypeSpec checkAdd(TypeSpec lt, TypeSpec rt, Location loc) {
         if(lt.isSimpleInt()) {
             return rt;
         } else {
             if(rt.isSimpleInt()) {
                 return lt;
             } else {
-                error("Type mismatch in binary expression");
+                error(loc, "Type mismatch in binary expression");
                 return new TypeSpec(BaseType.INT);
             }
         }
     }
 
-     private TypeSpec checkSub(TypeSpec lt, TypeSpec rt) {
+     private TypeSpec checkSub(TypeSpec lt, TypeSpec rt, Location loc) {
         if(rt.isSimpleInt()) {
             return lt;
         } else {
             if (lt.isCompatible(rt)) {
                 return new TypeSpec(BaseType.INT);
             } else {
-                error("Type mismatch in binary expression");
+                error(loc, "Type mismatch in binary expression");
                 return new TypeSpec(BaseType.INT);
             }
         }
@@ -257,17 +257,17 @@ public class SemanticAnalyzer {
         } else if (lv instanceof LvArrayElem arr) {
             Symbol sym = lookup(arr.getName(), arr.getLocation());
             if (sym.getType().getEffectivePointerDepth() == 0) {
-                error("Cannot dereference non-pointer");
+                error(lv.getLocation(), "Cannot dereference non-pointer");
             }
             return sym.getType().getDerefType();
         } else if (lv instanceof LvPtrDeref d) {
             TypeSpec t = checkExpr(d.getExpr());
             if (t.getEffectivePointerDepth() == 0) {
-                error("Cannot dereference non-pointer");
+                error(d.getLocation(), "Cannot dereference non-pointer");
             }
             return t.getDerefType();
         }
-        error("Unknown lvalue: " + lv);
+        error(lv.getLocation(), "Unknown lvalue: " + lv);
         return new TypeSpec(BaseType.INT);
     }
 
@@ -277,10 +277,10 @@ public class SemanticAnalyzer {
     private void enterScope() { scopes.push(new HashMap<>()); }
     private void exitScope() { scopes.pop(); }
 
-    private void declare(String name, Symbol sym) {
+    private void declare(String name, Symbol sym, Location loc) {
         Map<String, Symbol> current = scopes.peek();
         if (current.containsKey(name)) {
-            error("Redeclaration: " + name);
+            error(loc, "Redeclaration: " + name);
         }
         current.put(name, sym);
     }
@@ -291,14 +291,6 @@ public class SemanticAnalyzer {
         }
         error(loc, "Undeclared identifier: " + name);
         return null;
-    }
-
-    private void error(String msg) {
-        if (currentFilename != null && !currentFilename.isEmpty()) {
-            throw new MinicException(new Location(currentFilename, 0), msg);
-        } else {
-            throw new MinicException(msg);
-        }
     }
 
     private void error(Location location, String msg) {
