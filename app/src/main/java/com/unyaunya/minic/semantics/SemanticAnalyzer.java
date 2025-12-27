@@ -26,17 +26,8 @@ public class SemanticAnalyzer {
     private final TreeSet<String> strings = new TreeSet<>();
 
     private int localVarOffset;
-    private String currentFilename;
 
-    public SemanticAnalyzer() {
-        this.currentFilename = null;
-    }
-
-    public SemanticAnalyzer(String filename) {
-        this.currentFilename = filename;
-    }
-
-    public SemanticInfo analyze(Program program) {
+    public SemanticInfo analyze(Program program) throws MinicException {
         // Collect function signatures
         for (FunctionDecl f : program.getFunctions()) {
             if (functions.containsKey(f.getName())) {
@@ -61,7 +52,7 @@ public class SemanticAnalyzer {
         return new SemanticInfo(functionSymbols, localSizes, this.strings);
     }
 
-    private void analyzeFunction(FunctionDecl f) {
+    private void analyzeFunction(FunctionDecl f) throws MinicException {
         enterScope();
         localVarOffset = 0;
 
@@ -82,13 +73,13 @@ public class SemanticAnalyzer {
         exitScope();
     }
 
-    private void analyzeBlock(Block b, TypeSpec expectedReturn) {
+    private void analyzeBlock(Block b, TypeSpec expectedReturn) throws MinicException {
         for (Stmt s : b.getStatements()) {
             analyzeStmt(s, expectedReturn);
         }
     }
 
-    private void analyzeStmt(Stmt s, TypeSpec expectedReturn) {
+    private void analyzeStmt(Stmt s, TypeSpec expectedReturn) throws MinicException {
         if (s instanceof VarDecl v) {
             localVarOffset += v.getType().getSize(); // assume getSize() returns word count
             Symbol sym = new Symbol(v.getType(), StorageClass.LOCAL, localVarOffset);
@@ -155,7 +146,7 @@ public class SemanticAnalyzer {
         }
     }
 
-    private TypeSpec checkExpr(Expr e) {
+    private TypeSpec checkExpr(Expr e) throws MinicException {
         if (e instanceof IntLit) {
             return new TypeSpec(BaseType.INT);
         } else if (e instanceof StringLit s) {
@@ -210,7 +201,7 @@ public class SemanticAnalyzer {
         return new TypeSpec(BaseType.INT); // fallback
     }
 
-    private TypeSpec checkBinary(Binary b) {
+    private TypeSpec checkBinary(Binary b) throws MinicException {
         TypeSpec lt = checkExpr(b.getLeft());
         TypeSpec rt = checkExpr(b.getRight());
         switch (b.getOp()) {
@@ -225,7 +216,7 @@ public class SemanticAnalyzer {
         return lt;
     }
 
-     private TypeSpec checkAdd(TypeSpec lt, TypeSpec rt, Location loc) {
+     private TypeSpec checkAdd(TypeSpec lt, TypeSpec rt, Location loc) throws MinicException {
         if(lt.isSimpleInt()) {
             return rt;
         } else {
@@ -238,7 +229,7 @@ public class SemanticAnalyzer {
         }
     }
 
-     private TypeSpec checkSub(TypeSpec lt, TypeSpec rt, Location loc) {
+     private TypeSpec checkSub(TypeSpec lt, TypeSpec rt, Location loc) throws MinicException {
         if(rt.isSimpleInt()) {
             return lt;
         } else {
@@ -251,7 +242,7 @@ public class SemanticAnalyzer {
         }
     }
     
-    private TypeSpec checkLValue(LValue lv) {
+    private TypeSpec checkLValue(LValue lv) throws MinicException {
         if (lv instanceof LvVar v) {
             return lookup(v.getName(), v.getLocation()).getType();
         } else if (lv instanceof LvArrayElem arr) {
@@ -277,7 +268,7 @@ public class SemanticAnalyzer {
     private void enterScope() { scopes.push(new HashMap<>()); }
     private void exitScope() { scopes.pop(); }
 
-    private void declare(String name, Symbol sym, Location loc) {
+    private void declare(String name, Symbol sym, Location loc) throws MinicException {
         Map<String, Symbol> current = scopes.peek();
         if (current.containsKey(name)) {
             error(loc, "Redeclaration: " + name);
@@ -285,7 +276,7 @@ public class SemanticAnalyzer {
         current.put(name, sym);
     }
 
-    private Symbol lookup(String name, Location loc) {
+    private Symbol lookup(String name, Location loc) throws MinicException {
         for (Map<String, Symbol> scope : scopes) {
             if (scope.containsKey(name)) return scope.get(name);
         }
@@ -293,11 +284,11 @@ public class SemanticAnalyzer {
         return null;
     }
 
-    private void error(Location location, String msg) {
+    private void error(Location location, String msg) throws MinicException {
         throw new MinicException(location, msg);
     }
 
-    private void error(Location location, String fmt, Object... args) {
+    private void error(Location location, String fmt, Object... args) throws MinicException {
         throw new MinicException(location, fmt, args);
     }
 }

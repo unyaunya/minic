@@ -28,7 +28,3 @@ void main() {
         //_out();
     }
 }
-
-
-//void put(int n) {
-//}

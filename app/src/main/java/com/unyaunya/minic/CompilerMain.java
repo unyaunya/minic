@@ -26,11 +26,11 @@ import com.unyaunya.minic.semantics.SemanticInfo;
 public class CompilerMain {
     private Logger logger = Logger.getLogger(getClass().getName());    
     
-    public String compile(String path) throws IOException {
+    public String compile(String path) throws MinicException {
         return compile(Paths.get(path));
     }
 
-    public String compile(Path path) throws IOException {
+    public String compile(Path path) throws MinicException {
         // Preprocess includes so we can map combined line numbers back to filenames
         Preprocessor pre = new com.unyaunya.minic.preprocess.Preprocessor();
         Preprocessor.Result res = pre.preprocess(path);
@@ -46,14 +46,14 @@ public class CompilerMain {
         AstBuilder builder = new AstBuilder(res);
         Program ast = (Program) builder.visit(tree);
 
-        SemanticAnalyzer sema = new SemanticAnalyzer(path.toString());
+        SemanticAnalyzer sema = new SemanticAnalyzer();
         SemanticInfo semanticInfo = sema.analyze(ast); // throws on error
 
         Casl2Emitter emitter = new Casl2Emitter();
         return emitter.emit(ast, semanticInfo, 1024);
     }
 
-     public void run(String[] args) throws IOException {
+     public void run(String[] args) throws MinicException {
         if (args.length < 1) {
             logger.severe("Usage: minic <source.mc>");
             System.exit(1);
@@ -71,7 +71,7 @@ public class CompilerMain {
         }
     }
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws MinicException {
         new CompilerMain().run(args);
     }
 }

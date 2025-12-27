@@ -1,7 +1,7 @@
 package com.unyaunya.minic;
 
-public class MinicException extends RuntimeException{
-    private Location location;
+public class MinicException extends RuntimeException {
+    private final Location location;
 
     public MinicException(String string) {
         super(string);

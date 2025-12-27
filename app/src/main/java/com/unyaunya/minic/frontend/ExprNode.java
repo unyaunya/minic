@@ -8,7 +8,7 @@ import com.unyaunya.minic.Location;
 public abstract class ExprNode implements Expr {
     protected final Location location;
 
-    public ExprNode(Location location) {
+    protected ExprNode(Location location) {
         this.location = location;
     }
 

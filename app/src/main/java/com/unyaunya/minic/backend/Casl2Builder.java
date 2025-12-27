@@ -132,7 +132,7 @@ public class Casl2Builder {
         private final int limit;
         private int id=0;
 
-        public Casl2LabelGenerator(String prefix, String description) {
+        public Casl2LabelGenerator(String prefix, String description) throws MinicException {
             this.description = description;
             this.prefix = prefix;
             if (this.prefix.length() >= MAX_LABEL_LEN) {
@@ -141,7 +141,7 @@ public class Casl2Builder {
             this.limit = (int)Math.pow(10, (double)MAX_LABEL_LEN - this.prefix.length());
         }
 
-        public String getNewLabel() {
+        public String getNewLabel() throws MinicException {
             this.id += 1;
             if (this.id >= this.limit) {
                 throw new MinicException(String.format("The number of labels for %s exceeds the limit of %d.", this.description, this.limit-1));

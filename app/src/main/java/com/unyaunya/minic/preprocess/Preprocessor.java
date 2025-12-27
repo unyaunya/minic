@@ -49,7 +49,7 @@ public class Preprocessor {
     private final StringBuilder out = new StringBuilder();
     private int currentLine = 1; // 1-based
 
-    public Result preprocess(Path path) throws IOException {
+    public Result preprocess(Path path) throws MinicException {
         visited.clear();
         regions.clear();
         out.setLength(0);
@@ -58,12 +58,17 @@ public class Preprocessor {
         return new Result(out.toString(), new ArrayList<>(regions));
     }
 
-    private void includeFile(Path path) throws IOException {
+    private void includeFile(Path path) throws MinicException {
         Path abs = path.toAbsolutePath().normalize();
         if (visited.contains(abs)) return; // prevent cycles
         visited.add(abs);
 
-        List<String> lines = Files.readAllLines(abs);
+        List<String> lines;
+        try {
+            lines = Files.readAllLines(abs);
+        } catch (IOException e) {
+            throw new MinicException("Error reading file: " + path, new Location(path.toString(), 1), e);
+        }
         if (lines.isEmpty()) {
             return;
         }

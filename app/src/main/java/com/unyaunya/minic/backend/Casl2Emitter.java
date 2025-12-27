@@ -123,7 +123,7 @@ public class Casl2Emitter {
           case MacroStmt m ->  emitMacro(m);
           case Block b ->      emitBlock(b);
           case VarDecl v ->    emitVarDecl(v);
-          default ->           throw new MinicException(String.format("Unimplemented: %s", s.toString()));
+          default ->           throw new MinicException(s.getLocation(), "Unimplemented: %s", s);
         }
     }
 
@@ -174,7 +174,7 @@ public class Casl2Emitter {
                 // put the address of the target element in GR5
                 builder.adda(GR5, GR1);
             }
-            default -> throw new MinicException(String.format("Unimplemented: %s", lvalue.toString()));
+            default -> throw new MinicException(lvalue.getLocation(), "Unimplemented: %s", lvalue);
         }
     }
 
@@ -259,7 +259,7 @@ public class Casl2Emitter {
                 builder.ld(GR1, GR0);
             }
             case Call c -> emitCall(c);
-            default -> throw new MinicException(String.format("Unimplemented: %s", e.toString()));
+            default -> throw new MinicException(e.getLocation(), "Unimplemented: %s", e);
         }
     }
 
