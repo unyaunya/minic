@@ -1,8 +1,15 @@
 package com.unyaunya.minic.frontend;
+import lombok.Getter;
 
-import lombok.Value;
+import com.unyaunya.minic.Location;
 
-@Value
-public class UnaryNeg implements Expr {
+
+@Getter
+public class UnaryNeg extends ExprNode {
     Expr expr;
+
+    public UnaryNeg(Location location, Expr expr) {
+        super(location);
+        this.expr = expr;
+    }
 }

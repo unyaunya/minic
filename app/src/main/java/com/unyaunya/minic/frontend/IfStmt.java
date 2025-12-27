@@ -1,12 +1,19 @@
 package com.unyaunya.minic.frontend;
-
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 
-@AllArgsConstructor
+import com.unyaunya.minic.Location;
+
+
 @Getter
-public class IfStmt implements Stmt {
-    private final Expr cond;
-    private final Block thenBlock;
-    private final Block elseBlock;
+public class IfStmt extends StmtNode {
+    Expr cond;
+    Block thenBlock;
+    Block elseBlock;
+
+    public IfStmt(Location location, Expr cond, Block thenBlock, Block elseBlock) {
+        super(location);
+        this.cond = cond;
+        this.thenBlock = thenBlock;
+        this.elseBlock = elseBlock;
+    }
 }

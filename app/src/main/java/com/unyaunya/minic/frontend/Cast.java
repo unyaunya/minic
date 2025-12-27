@@ -1,9 +1,17 @@
 package com.unyaunya.minic.frontend;
+import lombok.Getter;
 
-import lombok.Value;
+import com.unyaunya.minic.Location;
 
-@Value
-public class Cast implements Expr {
+
+@Getter
+public class Cast extends ExprNode {
     TypeSpec type;
     Expr expr;
+
+    public Cast(Location location, TypeSpec type, Expr expr) {
+        super(location);
+        this.type = type;
+        this.expr = expr;
+    }
 }

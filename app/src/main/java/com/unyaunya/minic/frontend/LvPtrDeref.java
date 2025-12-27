@@ -1,8 +1,15 @@
 package com.unyaunya.minic.frontend;
+import lombok.Getter;
 
-import lombok.Value;
+import com.unyaunya.minic.Location;
 
-@Value
-public class LvPtrDeref implements LValue {
+
+@Getter
+public class LvPtrDeref extends ExprNode implements LValue {
     Expr expr;
+
+    public LvPtrDeref(Location location, Expr expr) {
+        super(location);
+        this.expr = expr;
+    }
 }

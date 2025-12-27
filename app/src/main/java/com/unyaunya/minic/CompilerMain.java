@@ -38,7 +38,7 @@ public class CompilerMain {
 
         ProgramContext tree = parser.program(); // entry rule
 
-        AstBuilder builder = new AstBuilder();
+        AstBuilder builder = new AstBuilder(path.toString());
         Program ast = (Program) builder.visit(tree);
 
         SemanticAnalyzer sema = new SemanticAnalyzer(path.toString());

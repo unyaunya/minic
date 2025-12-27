@@ -130,7 +130,7 @@ public class Casl2Emitter {
     private void emitVarDecl(VarDecl v) {
         builder.comment(v.toString());
         if (v.getInit() != null) {
-            emitAssign(new LvVar(v.getName()), v.getInit());
+            emitAssign(new LvVar(v.getLocation(), v.getName()), v.getInit());
         }
     }
 

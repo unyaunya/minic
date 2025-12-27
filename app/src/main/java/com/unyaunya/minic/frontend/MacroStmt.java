@@ -1,12 +1,17 @@
 package com.unyaunya.minic.frontend;
-
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 
-@AllArgsConstructor
+import com.unyaunya.minic.Location;
+
+
 @Getter
-public class MacroStmt implements Stmt {
-    private final String op;    
+public class MacroStmt extends StmtNode {
+    String op;
+
+    public MacroStmt(Location location, String op) {
+        super(location);
+        this.op = op;
+    }
 
     public String toString() {
         return String.format("%s()", op);

@@ -1,10 +1,17 @@
 package com.unyaunya.minic.frontend;
+import lombok.Getter;
 
-import lombok.Value;
+import com.unyaunya.minic.Location;
 
-@Value
-public class LvVar implements LValue {
+
+@Getter
+public class LvVar extends ExprNode implements LValue {
     String name;
+
+    public LvVar(Location location, String name) {
+        super(location);
+        this.name = name;
+    }
 
     public String toString() {
         return name;

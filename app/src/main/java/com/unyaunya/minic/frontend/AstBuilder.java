@@ -1,14 +1,40 @@
 // frontend/AstBuilder.java
 package com.unyaunya.minic.frontend;
 
+import com.unyaunya.minic.Location;
 import com.unyaunya.minic.parser.*;
 import com.unyaunya.minic.parser.MiniCParser.ArraySizeContext;
 import com.unyaunya.minic.parser.MiniCParser.StatementContext;
+import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
 import java.util.*;
 
 public class AstBuilder extends MiniCBaseVisitor<Node> {
+    private final String filename;
+
+    public AstBuilder(String filename) {
+        this.filename = filename;
+    }
+
+    public AstBuilder() {
+        this.filename = null;
+    }
+
+    // ----------------------
+    // Helper to extract location from ANTLR context
+    // ----------------------
+    private Location getLocation(ParserRuleContext ctx) {
+        if (ctx == null) return new Location(filename, 0);
+        int line = ctx.getStart().getLine();
+        return new Location(filename, line);
+    }
+
+    private Location getLocation(TerminalNode node) {
+        if (node == null) return new Location(filename, 0);
+        int line = node.getSymbol().getLine();
+        return new Location(filename, line);
+    }
 
     // ----------------------
     // Entry point
@@ -109,7 +135,7 @@ public class AstBuilder extends MiniCBaseVisitor<Node> {
         if (ctx.block() != null)      return visit(ctx.block());
         if (ctx.returnStmt() != null) return visit(ctx.returnStmt());
         if (ctx.macroStmt() != null)  return visit(ctx.macroStmt());
-        if (ctx.expr() != null)       return new ExprStmt((Expr) visit(ctx.expr()));
+        if (ctx.expr() != null)       return new ExprStmt(getLocation(ctx), (Expr) visit(ctx.expr()));
         throw new IllegalStateException("Unknown statement alternative: " + ctx.getText());
     }
 
@@ -131,18 +157,18 @@ public class AstBuilder extends MiniCBaseVisitor<Node> {
         TypeSpec type = toTypeSpec(ctx.typeSpec(), arraySize);
         // If you want local arrays encoded in TypeSpec, you can read ctx.arraySize() here and update TypeSpec accordingly.
         Expr init = (ctx.expr() == null) ? null : (Expr) visit(ctx.expr());
-        return new VarDecl(type, name, init);
+        return new VarDecl(getLocation(ctx), type, name, init);
     }
 
     @Override
     public Node visitAssignment(MiniCParser.AssignmentContext ctx) {
-        return new Assign((LValue) visit(ctx.lvalue()), (Expr) visit(ctx.expr()));
+        return new Assign(getLocation(ctx), (LValue) visit(ctx.lvalue()), (Expr) visit(ctx.expr()));
     }
 
     @Override
     public Node visitReturnStmt(MiniCParser.ReturnStmtContext ctx) {
         Expr v = (ctx.expr() == null) ? null : (Expr) visit(ctx.expr());
-        return new ReturnStmt(v);
+        return new ReturnStmt(getLocation(ctx), v);
     }
 
     @Override
@@ -154,12 +180,12 @@ public class AstBuilder extends MiniCBaseVisitor<Node> {
         if (statements.size() > 1) {
             elseBlock = toBlock(statements.get(1));
         }
-        return new IfStmt(cond, thenBlock, elseBlock);
+        return new IfStmt(getLocation(ctx), cond, thenBlock, elseBlock);
     }
 
     @Override
     public Node visitWhileStmt(MiniCParser.WhileStmtContext ctx) {
-        return new WhileStmt((Expr) visit(ctx.expr()), toBlock(ctx.statement()));
+        return new WhileStmt(getLocation(ctx), (Expr) visit(ctx.expr()), toBlock(ctx.statement()));
     }
 
     @Override
@@ -168,7 +194,7 @@ public class AstBuilder extends MiniCBaseVisitor<Node> {
         Expr cond = (ctx.expr() == null) ? null : (Expr) visit(ctx.expr());
         Stmt update = (ctx.forUpdate() == null) ? null : (Stmt) visit(ctx.forUpdate());
         Block body = toBlock(ctx.statement());
-        return new ForStmt(init, cond, update, body);
+        return new ForStmt(getLocation(ctx), init, cond, update, body);
     }
 
     @Override
@@ -185,7 +211,7 @@ public class AstBuilder extends MiniCBaseVisitor<Node> {
 
     @Override
     public Node visitMacroStmt(MiniCParser.MacroStmtContext ctx) {
-        return new MacroStmt(ctx.MACRO().getText());
+        return new MacroStmt(getLocation(ctx), ctx.MACRO().getText());
     }
 
 
@@ -194,17 +220,17 @@ public class AstBuilder extends MiniCBaseVisitor<Node> {
     // ----------------------
     @Override
     public Node visitLvVar(MiniCParser.LvVarContext ctx) {
-        return new LvVar(ctx.IDENT().getText());
+        return new LvVar(getLocation(ctx), ctx.IDENT().getText());
     }
 
     @Override
     public Node visitLvArrayElem(MiniCParser.LvArrayElemContext ctx) {
-        return new LvArrayElem(ctx.IDENT().getText(), (Expr) visit(ctx.expr()));
+        return new LvArrayElem(getLocation(ctx), ctx.IDENT().getText(), (Expr) visit(ctx.expr()));
     }
 
     @Override
     public Node visitLvPtrDeref(MiniCParser.LvPtrDerefContext ctx) {
-        return new LvPtrDeref((Expr) visit(ctx.expr()));
+        return new LvPtrDeref(getLocation(ctx), (Expr) visit(ctx.expr()));
     }
 
     // ----------------------
@@ -215,7 +241,7 @@ public class AstBuilder extends MiniCBaseVisitor<Node> {
         Expr left = (Expr) visit(ctx.expr(0));
         Expr right = (Expr) visit(ctx.expr(1));
         Binary.Op op = ctx.op.getText().equals("*") ? Binary.Op.MUL : Binary.Op.DIV;
-        return new Binary(op, left, right);
+        return new Binary(getLocation(ctx), op, left, right);
     }
 
     @Override
@@ -223,7 +249,7 @@ public class AstBuilder extends MiniCBaseVisitor<Node> {
         Expr left = (Expr) visit(ctx.expr(0));
         Expr right = (Expr) visit(ctx.expr(1));
         Binary.Op op = ctx.op.getText().equals("+") ? Binary.Op.ADD : Binary.Op.SUB;
-        return new Binary(op, left, right);
+        return new Binary(getLocation(ctx), op, left, right);
     }
 
     @Override
@@ -239,7 +265,7 @@ public class AstBuilder extends MiniCBaseVisitor<Node> {
             case "!=" -> Binary.Op.NE;
             default -> throw new IllegalArgumentException("Unknown compare op: " + ctx.op.getText());
         };
-        return new Binary(op, left, right);
+        return new Binary(getLocation(ctx), op, left, right);
     }
 
     @Override
@@ -249,27 +275,27 @@ public class AstBuilder extends MiniCBaseVisitor<Node> {
 
     @Override
     public Node visitUnaryNeg(MiniCParser.UnaryNegContext ctx) {
-        return new UnaryNeg((Expr) visit(ctx.expr()));
+        return new UnaryNeg(getLocation(ctx), (Expr) visit(ctx.expr()));
     }
 
     @Override
     public Node visitAddressOf(MiniCParser.AddressOfContext ctx) {
-        return new AddressOf(ctx.IDENT().getText());
+        return new AddressOf(getLocation(ctx), ctx.IDENT().getText());
     }
 
     @Override
     public Node visitDeref(MiniCParser.DerefContext ctx) {
-        return new PtrDeref((Expr) visit(ctx.expr()));
+        return new PtrDeref(getLocation(ctx), (Expr) visit(ctx.expr()));
     }
 
     @Override
     public Node visitCast(MiniCParser.CastContext ctx) {
-        return new Cast(toTypeSpec(ctx.typeSpec()), (Expr) visit(ctx.expr()));
+        return new Cast(getLocation(ctx), toTypeSpec(ctx.typeSpec()), (Expr) visit(ctx.expr()));
     }
 
     @Override
     public Node visitArrayAccess(MiniCParser.ArrayAccessContext ctx) {
-        return new ArrayElem(ctx.IDENT().getText(), (Expr) visit(ctx.expr()));
+        return new ArrayElem(getLocation(ctx), ctx.IDENT().getText(), (Expr) visit(ctx.expr()));
     }
 
     @Override
@@ -279,17 +305,17 @@ public class AstBuilder extends MiniCBaseVisitor<Node> {
         if (ctx.expr() != null) {
             for (var e : ctx.expr()) args.add((Expr) visit(e));
         }
-        return new Call(name, args);
+        return new Call(getLocation(ctx), name, args);
     }
 
     @Override
     public Node visitVarRef(MiniCParser.VarRefContext ctx) {
-        return new VarRef(ctx.IDENT().getText());
+        return new VarRef(getLocation(ctx), ctx.IDENT().getText());
     }
 
     @Override
     public Node visitIntLit(MiniCParser.IntLitContext ctx) {
-        return new IntLit(Integer.parseInt(ctx.INTEGER().getText()));
+        return new IntLit(getLocation(ctx), Integer.parseInt(ctx.INTEGER().getText()));
     }
 
     @Override
@@ -300,7 +326,7 @@ public class AstBuilder extends MiniCBaseVisitor<Node> {
         }
         String inner = text.substring(1, text.length() - 1);
         String value = unescapeString(inner);
-        return new StringLit(value);
+        return new StringLit(getLocation(ctx), value);
     }
 
     /**
@@ -400,7 +426,7 @@ public class AstBuilder extends MiniCBaseVisitor<Node> {
         String inner = text.substring(1, text.length() - 1);  // content between quotes
         // Your lexer guarantees inner is either 1 char or '\' + 1 char
         int codePoint = decodeCharacterInner(inner);
-        return new IntLit(codePoint);
+        return new IntLit(getLocation(ctx), codePoint);
     }
 
     /**

@@ -1,9 +1,11 @@
 package com.unyaunya.minic.frontend;
 
-import lombok.Value;
+import com.unyaunya.minic.Location;
+import lombok.Getter;
 
-@Value
-public class Binary implements Expr {
+
+@Getter
+public class Binary extends ExprNode {
     public enum Op {
         ADD("+"),
         SUB("-"),
@@ -28,6 +30,13 @@ public class Binary implements Expr {
     Op op;
     Expr left;
     Expr right;
+
+    public Binary(Location location, Op op, Expr left, Expr right) {
+        super(location);
+        this.op = op;
+        this.left = left;
+        this.right = right;
+    }
 
     public String toString() {
         return String.format("%s%s%s", left.toString(), op.toString(), right.toString());

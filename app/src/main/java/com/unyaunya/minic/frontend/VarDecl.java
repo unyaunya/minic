@@ -1,12 +1,20 @@
 package com.unyaunya.minic.frontend;
 
-import lombok.Value;
+import com.unyaunya.minic.Location;
+import lombok.Getter;
 
-@Value
-public class VarDecl implements Stmt {
+@Getter
+public class VarDecl extends StmtNode {
     TypeSpec type;
     String name;
     Expr init; // init may be null
+
+    public VarDecl(Location location, TypeSpec type, String name, Expr init) {
+        super(location);
+        this.type = type;
+        this.name = name;
+        this.init = init;
+    }
 
     public String toString() {
         if (this.init == null) {

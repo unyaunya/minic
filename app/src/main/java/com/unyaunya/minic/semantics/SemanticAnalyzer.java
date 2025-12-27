@@ -162,7 +162,7 @@ public class SemanticAnalyzer {
             this.strings.add(s.getValue());
             return new TypeSpec(BaseType.INT, 1);
         } else if (e instanceof VarRef v) {
-            return lookup(v.getName()).getType();
+            return lookup(v.getName(), v.getLocation()).getType();
         } else if (e instanceof Binary b) {
             return checkBinary(b);
         } else if (e instanceof UnaryNeg u) {
@@ -172,7 +172,7 @@ public class SemanticAnalyzer {
             }
             return t;
         } else if (e instanceof AddressOf a) {
-            Symbol sym = lookup(a.getName());
+            Symbol sym = lookup(a.getName(), a.getLocation());
             return sym.getType().getAddressType();
         } else if (e instanceof PtrDeref d) {
             TypeSpec t = checkExpr(d.getExpr());
@@ -183,7 +183,7 @@ public class SemanticAnalyzer {
         } else if (e instanceof Cast d) {
             return d.getType();
         } else if (e instanceof ArrayElem arr) {
-            Symbol sym = lookup(arr.getName());
+            Symbol sym = lookup(arr.getName(), arr.getLocation());
             TypeSpec idxType = checkExpr(arr.getExpr());
             if (idxType.getBaseType() != BaseType.INT) {
                 error("Array index must be int");
@@ -253,9 +253,9 @@ public class SemanticAnalyzer {
     
     private TypeSpec checkLValue(LValue lv) {
         if (lv instanceof LvVar v) {
-            return lookup(v.getName()).getType();
+            return lookup(v.getName(), v.getLocation()).getType();
         } else if (lv instanceof LvArrayElem arr) {
-            Symbol sym = lookup(arr.getName());
+            Symbol sym = lookup(arr.getName(), arr.getLocation());
             if (sym.getType().getEffectivePointerDepth() == 0) {
                 error("Cannot dereference non-pointer");
             }
@@ -285,11 +285,11 @@ public class SemanticAnalyzer {
         current.put(name, sym);
     }
 
-    private Symbol lookup(String name) {
+    private Symbol lookup(String name, Location loc) {
         for (Map<String, Symbol> scope : scopes) {
             if (scope.containsKey(name)) return scope.get(name);
         }
-        error("Undeclared identifier: " + name);
+        error(loc, "Undeclared identifier: " + name);
         return null;
     }
 

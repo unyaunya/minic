@@ -1,12 +1,17 @@
 package com.unyaunya.minic.frontend;
-
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 
-@AllArgsConstructor
+import com.unyaunya.minic.Location;
+
+
 @Getter
-public class ExprStmt implements Stmt {
-    private final Expr expr;    
+public class ExprStmt extends StmtNode {
+    Expr expr;
+
+    public ExprStmt(Location location, Expr expr) {
+        super(location);
+        this.expr = expr;
+    }
 
     public String toString() {
         return String.format("%s", expr.toString());

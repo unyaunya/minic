@@ -1,13 +1,19 @@
 package com.unyaunya.minic.frontend;
-
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 
-@AllArgsConstructor
+import com.unyaunya.minic.Location;
+
+
 @Getter
-public class WhileStmt implements Stmt {
-    private final Expr cond;
-    private final Block body;
+public class WhileStmt extends StmtNode {
+    Expr cond;
+    Block body;
+
+    public WhileStmt(Location location, Expr cond, Block body) {
+        super(location);
+        this.cond = cond;
+        this.body = body;
+    }
 
     public String toString() {
         return String.format("while(%s)", cond.toString());

@@ -1,11 +1,19 @@
 package com.unyaunya.minic.frontend;
+import lombok.Getter;
 
-import lombok.Value;
+import com.unyaunya.minic.Location;
 
-@Value
-public class LvArrayElem implements LValue {
+
+@Getter
+public class LvArrayElem extends ExprNode implements LValue {
     String name;
     Expr expr;
+
+    public LvArrayElem(Location location, String name, Expr expr) {
+        super(location);
+        this.name = name;
+        this.expr = expr;
+    }
 
     public String toString() {
         return String.format("%s[%s]", name, expr.toString());
