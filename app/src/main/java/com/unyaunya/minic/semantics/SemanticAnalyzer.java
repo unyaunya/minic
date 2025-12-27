@@ -1,6 +1,7 @@
 
 package com.unyaunya.minic.semantics;
 
+import com.unyaunya.minic.Location;
 import com.unyaunya.minic.MinicException;
 import com.unyaunya.minic.frontend.*;
 import com.unyaunya.minic.frontend.Binary.Op;
@@ -25,6 +26,15 @@ public class SemanticAnalyzer {
     private final TreeSet<String> strings = new TreeSet<>();
 
     private int localVarOffset;
+    private String currentFilename;
+
+    public SemanticAnalyzer() {
+        this.currentFilename = null;
+    }
+
+    public SemanticAnalyzer(String filename) {
+        this.currentFilename = filename;
+    }
 
     public SemanticInfo analyze(Program program) {
         // Collect function signatures
@@ -284,6 +294,18 @@ public class SemanticAnalyzer {
     }
 
     private void error(String msg) {
-        throw new MinicException("Semantic error: " + msg);
+        if (currentFilename != null && !currentFilename.isEmpty()) {
+            throw new MinicException(new Location(currentFilename, 0), msg);
+        } else {
+            throw new MinicException(msg);
+        }
+    }
+
+    private void error(Location location, String msg) {
+        throw new MinicException(location, msg);
+    }
+
+    private void error(Location location, String fmt, Object... args) {
+        throw new MinicException(location, fmt, args);
     }
 }

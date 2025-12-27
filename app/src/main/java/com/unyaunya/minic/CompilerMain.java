@@ -41,7 +41,7 @@ public class CompilerMain {
         AstBuilder builder = new AstBuilder();
         Program ast = (Program) builder.visit(tree);
 
-        SemanticAnalyzer sema = new SemanticAnalyzer();
+        SemanticAnalyzer sema = new SemanticAnalyzer(path.toString());
         SemanticInfo semanticInfo = sema.analyze(ast); // throws on error
 
         Casl2Emitter emitter = new Casl2Emitter();
