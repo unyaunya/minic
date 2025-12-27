@@ -138,7 +138,7 @@ public class Casl2Builder {
             if (this.prefix.length() >= MAX_LABEL_LEN) {
                 throw new MinicException(String.format("'%s' is too long for label prefix.", this.prefix));
             }
-            this.limit = (int)Math.pow(10, MAX_LABEL_LEN - this.prefix.length());
+            this.limit = (int)Math.pow(10, (double)MAX_LABEL_LEN - this.prefix.length());
         }
 
         public String getNewLabel() {

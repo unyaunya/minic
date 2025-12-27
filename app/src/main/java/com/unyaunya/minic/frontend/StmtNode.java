@@ -8,7 +8,7 @@ import com.unyaunya.minic.Location;
 public abstract class StmtNode implements Stmt {
     protected final Location location;
 
-    public StmtNode(Location location) {
+    protected StmtNode(Location location) {
         this.location = location;
     }
 

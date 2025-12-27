@@ -12,6 +12,6 @@ public class FunctionDecl implements Node {
     Block body;
 
     public String toString() {
-        return String.format("%s(%s)", name, String.join(", ", params.stream().map(i -> i.toString()).toList()));
+        return String.format("%s(%s)", name, String.join(", ", params.stream().map(Object::toString).toList()));
     }
 }
