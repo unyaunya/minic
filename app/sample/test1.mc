@@ -1,7 +1,9 @@
-int d[10];
+#include "muldiv.c"
+#include "io.c"
 
-int plus(int a, int b) {
-    return a + b;
-}
-void nop(int a, int b) {
+void main() {
+    int buff[256];
+    gets(buff);
+    puts(buff);
+    int a = div(8, 4);
 }

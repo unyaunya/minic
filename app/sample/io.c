@@ -13,6 +13,13 @@ void puts(int* s) {
     _out();
 }
 
+int* gets(int* s) {
+    _in();
+    ibuf[ilen] = '\0';
+    strcpy(s, ibuf);
+    return s;
+}
+
 void putn(int n) {
     olen = sputn(obuf, n) - obuf;
     _out();

@@ -32,7 +32,7 @@ public class CompilerMain {
 
     public String compile(Path path) throws MinicException {
         // Preprocess includes so we can map combined line numbers back to filenames
-        Preprocessor pre = new com.unyaunya.minic.preprocess.Preprocessor();
+        Preprocessor pre = new Preprocessor();
         Preprocessor.Result res = pre.preprocess(path);
 
         CharStream input = CharStreams.fromString(res.content);
