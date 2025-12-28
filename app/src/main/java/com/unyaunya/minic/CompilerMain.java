@@ -13,9 +13,9 @@ import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 
+import com.unyaunya.minic.ast.Program;
+import com.unyaunya.minic.backend.AstBuilder;
 import com.unyaunya.minic.backend.Casl2Emitter;
-import com.unyaunya.minic.frontend.AstBuilder;
-import com.unyaunya.minic.frontend.Program;
 import com.unyaunya.minic.parser.MiniCLexer;
 import com.unyaunya.minic.parser.MiniCParser;
 import com.unyaunya.minic.parser.MiniCParser.ProgramContext;

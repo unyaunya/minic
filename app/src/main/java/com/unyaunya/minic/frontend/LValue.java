@@ -1,3 +1,0 @@
-package com.unyaunya.minic.frontend;
-
-public interface LValue extends Expr {}

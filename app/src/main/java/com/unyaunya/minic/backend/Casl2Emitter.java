@@ -4,8 +4,8 @@ package com.unyaunya.minic.backend;
 import static com.unyaunya.minic.backend.Casl2Builder.*;
 
 import com.unyaunya.minic.MinicException;
+import com.unyaunya.minic.ast.*;
 import com.unyaunya.minic.backend.Casl2Builder.Casl2LabelGenerator;
-import com.unyaunya.minic.frontend.*;
 import com.unyaunya.minic.semantics.SemanticInfo;
 import com.unyaunya.minic.semantics.StorageClass;
 import com.unyaunya.minic.semantics.Symbol;

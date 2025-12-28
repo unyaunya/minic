@@ -3,8 +3,8 @@ package com.unyaunya.minic.semantics;
 
 import com.unyaunya.minic.Location;
 import com.unyaunya.minic.MinicException;
-import com.unyaunya.minic.frontend.*;
-import com.unyaunya.minic.frontend.Binary.Op;
+import com.unyaunya.minic.ast.*;
+import com.unyaunya.minic.ast.Binary.Op;
 
 import java.util.*;
 

@@ -1,6 +1,7 @@
 package com.unyaunya.minic.semantics;
 
-import com.unyaunya.minic.frontend.TypeSpec;
+import com.unyaunya.minic.ast.TypeSpec;
+
 import lombok.Value;
 
 /**
