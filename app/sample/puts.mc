@@ -1,3 +1,4 @@
+#include "io.c"
 
 /**
  * main routine
@@ -24,5 +25,3 @@ void main() {
         putn(strlen(s[i]));
     }
 }
-
-#include "io.c"

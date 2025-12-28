@@ -4,6 +4,7 @@ package com.unyaunya.minic.backend;
 import static com.unyaunya.minic.backend.Casl2Builder.*;
 
 import com.unyaunya.minic.MinicException;
+import com.unyaunya.minic.backend.Casl2Builder.Casl2LabelGenerator;
 import com.unyaunya.minic.frontend.*;
 import com.unyaunya.minic.semantics.SemanticInfo;
 import com.unyaunya.minic.semantics.StorageClass;
@@ -34,16 +35,28 @@ public class Casl2Emitter {
             this.strings.put(s, lgStr.getNewLabel());
         }
         //
-        builder.start().l("PRG").c("Program start");
-        builder.lad(GR1, stackSize).c("Put stacksize to GR1");
-        builder.lad(GR7, "STACK", GR1).c("GR7 plays a role of ESP in x86");
-        builder.ld(GR6, GR7).c("GR6 plays a role of EBP in x86");
+        boolean hasMain =  program.getFunctions().stream().anyMatch(f -> f.getName().equalsIgnoreCase("MAIN"));
+        if (hasMain) {
+            builder.start("ENTRY").l("PRG").c("Program start");
+        } else {
+            builder.start().l("PRG").c("Program start");
+        }
+        builder.comment("Data Section Start");
+        emitGlobals(program.getGlobals());
+        builder.comment("Data Section End");
+        if (hasMain) {
+            builder.lad(GR1, stackSize).l("ENTRY").c("Put stacksize to GR1");
+            builder.lad(GR7, "STACK", GR1).c("GR7 plays a role of ESP in x86");
+            builder.ld(GR6, GR7).c("GR6 plays a role of EBP in x86");
+            builder.call("MAIN");
+            builder.ret();
+        } 
         for (FunctionDecl f : program.getFunctions()) {
             emitFunction(f);
         }
-        builder.comment("Data Section");
-        emitGlobals(program.getGlobals());
-        builder.ds(stackSize).l("STACK").c("Stack Ares");
+        if (hasMain) {
+            builder.ds(stackSize).l("STACK").c("Stack Ares");
+        }
         builder.end().c("Program end");
         return builder.build();
     }

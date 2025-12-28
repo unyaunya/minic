@@ -12,4 +12,8 @@ public class UnaryNeg extends ExprNode {
         super(location);
         this.expr = expr;
     }
+
+    public String toString() {
+        return String.format("-%s", expr);
+    }
 }
