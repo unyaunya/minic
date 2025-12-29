@@ -1,19 +1,19 @@
 package com.unyaunya.minic.ast;
-import lombok.Getter;
 
 import com.unyaunya.minic.Location;
+import lombok.Getter;
 
 
 @Getter
-public class PtrDeref extends ExprNode {
+public class LogicalNot extends ExprNode {
     Expr expr;
 
-    public PtrDeref(Location location, Expr expr) {
+    public LogicalNot(Location location, Expr expr) {
         super(location);
         this.expr = expr;
     }
 
     public String toString() {
-        return String.format("(*%s)", expr.toString());
+        return String.format("!%s", expr);
     }
 }

@@ -228,6 +228,7 @@ public class Casl2Emitter {
     }
 
     private void emitExpr(Expr e) {
+        builder.comment(e.toString());
         switch (e) {
             case IntLit lit -> builder.lad(GR1, lit.getValue()).c("Put the int lit to GR1");
             case StringLit lit -> builder.lad(GR1, this.strings.get(lit.getValue())).c("Put the addr of string");
@@ -253,16 +254,12 @@ public class Casl2Emitter {
                 builder.ld(GR1, "0", GR5).c("Put val to GR1");
             }
             case Binary bin -> {
-                emitExpr(bin.getRight());
-                builder.push("0", GR1);
-                emitExpr(bin.getLeft());
-                builder.pop(GR2);
-                switch (bin.getOp()) {
-                case ADD -> builder.adda(GR1, GR2);
-                case SUB -> builder.suba(GR1, GR2);
-                case MUL -> builder.comment("TODO: MULA not implemented");
-                case DIV -> builder.comment("TODO: DIVA not implemented");
-                default -> emitComparison(bin.getOp());
+                if (bin.getOp() == Binary.Op.AND) {
+                    emitLogicalAnd(bin);
+                } else if (bin.getOp() == Binary.Op.OR) {
+                    emitLogicalOr(bin);
+                } else {
+                    emitBinaryDefault(bin);
                 }
             }
             case UnaryNeg u -> {
@@ -271,6 +268,7 @@ public class Casl2Emitter {
                 builder.suba(GR0, GR1);
                 builder.ld(GR1, GR0);
             }
+            case LogicalNot n -> emitLogicalNot(n);
             case Call c -> emitCall(c);
             default -> throw new MinicException(e.getLocation(), "Unimplemented: %s", e);
         }
@@ -289,15 +287,86 @@ public class Casl2Emitter {
         case NE -> builder.jnz(trueLabel);
         default -> throw new MinicException("unreachable");
         }
-        builder.xor(GR0, GR0).c("False branch:ZF on");
+        builder.xor(GR1, GR1).c("False branch:ZF on");
         builder.jump(endLabel);
-        builder.ld(GR0, GR7).l(trueLabel).c("True branch:ZF off");
+        builder.ld(GR1, "=1").l(trueLabel).c("True branch:ZF off");
         builder.nop().l(endLabel);
+    }
+
+    // Default binary operations: evaluate right then left so emitComparison works
+    private void emitBinaryDefault(Binary bin) {
+        emitExpr(bin.getRight());
+        builder.push("0", GR1);
+        emitExpr(bin.getLeft());
+        builder.pop(GR2);
+        switch (bin.getOp()) {
+        case ADD -> builder.adda(GR1, GR2);
+        case SUB -> builder.suba(GR1, GR2);
+        case MUL -> builder.comment("TODO: MULA not implemented");
+        case DIV -> builder.comment("TODO: DIVA not implemented");
+        default -> emitComparison(bin.getOp());
+        }
+    }
+
+    private void emitLogicalAnd(Binary bin) {
+        Expr left = bin.getLeft();
+        Expr right = bin.getRight();
+        String falseLbl = lgCompareEnd.getNewLabel();
+        String endLbl = lgCompareTrue.getNewLabel();
+        builder.comment("Logical AND");
+        emitExpr(left); // GR1 = left
+        builder.xor(GR0, GR0).c("GR0=0");
+        builder.cpa(GR1, GR0).c("test GR1==0");
+        builder.jze(falseLbl).c("False if left is false");
+        emitExpr(right); // GR1 = right
+        builder.cpa(GR1, GR0).c("test GR1==0");
+        builder.jze(falseLbl).c("False if right is false");
+        // true
+        builder.ld(GR1, "=1").c("GR1=1");
+        builder.jump(endLbl);
+        builder.xor(GR1, GR1).l(falseLbl).c("GR1=0");
+        builder.nop().l(endLbl);
+    }
+
+    private void emitLogicalOr(Binary bin) {
+        Expr left = bin.getLeft();
+        Expr right = bin.getRight();
+        String trueLbl = lgCompareTrue.getNewLabel();
+        String endLbl = lgCompareEnd.getNewLabel();
+        builder.comment("Logical OR");
+        emitExpr(left); // GR1 = left
+        builder.xor(GR0, GR0).c("GR0=0");
+        builder.cpa(GR1, GR0).c("test GR1==0");
+        builder.jnz(trueLbl).c("True if left is true");
+        emitExpr(right); // GR1 = right
+        builder.cpa(GR1, GR0).c("test GR1==0");
+        builder.jnz(trueLbl).c("True if right is true");
+        // false
+        builder.xor(GR1, GR1).c("GR1=0");
+        builder.jump(endLbl);
+        builder.ld(GR1, "=1").c("GR1=1").l(trueLbl);
+        builder.nop().l(endLbl);
+    }
+
+    private void emitLogicalNot(LogicalNot n) {
+        builder.comment("!%s", n.getExpr().toString());
+        emitExpr(n.getExpr());
+        String trueLbl = lgCompareTrue.getNewLabel();
+        String endLbl = lgCompareEnd.getNewLabel();
+        builder.xor(GR0, GR0).c("GR0=0");
+        builder.cpa(GR1, GR0).c("test GR1==0");
+        builder.jze(trueLbl);
+        // not true -> result 0
+        builder.xor(GR1, GR1).c("GR1=0");
+        builder.jump(endLbl);
+        builder.ld(GR1, "=1").c("GR1=1").l(trueLbl);
+        builder.nop().l(endLbl);
     }
 
     private void emitIf(IfStmt i) {
         String elseLabel = lgIfElse.getNewLabel();
         String endLabel = lgIfEnd.getNewLabel();
+        builder.comment("if(%s)", i.getCond().toString());
         emitExpr(i.getCond());
         if(i.getElseBlock() != null) {
             builder.jze(elseLabel);

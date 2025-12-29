@@ -162,6 +162,12 @@ public class SemanticAnalyzer {
                 error(u.getLocation(),"Unary negation only valid on int");
             }
             return t;
+        } else if (e instanceof LogicalNot n) {
+            TypeSpec t = checkExpr(n.getExpr());
+            if (t.getBaseType() != BaseType.INT) {
+                error(n.getLocation(), "Logical not (!) only valid on int");
+            }
+            return new TypeSpec(BaseType.INT);
         } else if (e instanceof AddressOf a) {
             Symbol sym = lookup(a.getName(), a.getLocation());
             return sym.getType().getAddressType();
@@ -207,11 +213,19 @@ public class SemanticAnalyzer {
         switch (b.getOp()) {
             case Op.ADD -> { return checkAdd(lt, rt, b.getLocation()); }
             case Op.SUB -> { return checkSub(lt, rt, b.getLocation()); }
-            default -> {
-                if (!lt.isCompatible(rt)) {
-                    error(b.getLocation(), "Type mismatch in binary expression");
+            case Op.AND, Op.OR -> {
+                if (lt.getBaseType() != BaseType.INT || rt.getBaseType() != BaseType.INT) {
+                    error(b.getLocation(), "Logical &&/|| operands must be int");
                 }
+                return new TypeSpec(BaseType.INT);
             }
+            case Op.LT, Op.LE, Op.GT, Op.GE, Op.EQ, Op.NE -> {
+                if (!lt.isCompatible(rt)) {
+                    error(b.getLocation(), "Type mismatch in comparison");
+                }
+                return new TypeSpec(BaseType.INT);
+            }
+            default -> error(b.getLocation(), "Unknown binary operator: " + b.getOp());
         }
         return lt;
     }

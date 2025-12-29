@@ -16,7 +16,9 @@ public class Binary extends ExprNode {
         GT(">"),
         GE(">="),
         EQ("=="),
-        NE("!=");
+        NE("!="),
+        AND("&&"),
+        OR("||");
 
         private final String symbol;
         Op(String symbol) {

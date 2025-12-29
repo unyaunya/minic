@@ -241,6 +241,20 @@ public class AstBuilder extends MiniCBaseVisitor<Node> {
     }
 
     @Override
+    public Node visitLogicalAnd(MiniCParser.LogicalAndContext ctx) {
+        Expr left = (Expr) visit(ctx.expr(0));
+        Expr right = (Expr) visit(ctx.expr(1));
+        return new Binary(getLocation(ctx), Binary.Op.AND, left, right);
+    }
+
+    @Override
+    public Node visitLogicalOr(MiniCParser.LogicalOrContext ctx) {
+        Expr left = (Expr) visit(ctx.expr(0));
+        Expr right = (Expr) visit(ctx.expr(1));
+        return new Binary(getLocation(ctx), Binary.Op.OR, left, right);
+    }
+
+    @Override
     public Node visitAddSub(MiniCParser.AddSubContext ctx) {
         Expr left = (Expr) visit(ctx.expr(0));
         Expr right = (Expr) visit(ctx.expr(1));
@@ -272,6 +286,11 @@ public class AstBuilder extends MiniCBaseVisitor<Node> {
     @Override
     public Node visitUnaryNeg(MiniCParser.UnaryNegContext ctx) {
         return new UnaryNeg(getLocation(ctx), (Expr) visit(ctx.expr()));
+    }
+
+    @Override
+    public Node visitLogicalNot(MiniCParser.LogicalNotContext ctx) {
+        return new LogicalNot(getLocation(ctx), (Expr) visit(ctx.expr()));
     }
 
     @Override

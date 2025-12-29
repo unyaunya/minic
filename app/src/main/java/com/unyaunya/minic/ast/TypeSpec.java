@@ -34,6 +34,8 @@ public class TypeSpec {
     }
 
     public boolean isCompatible(TypeSpec t) {
+        // Two types are compatible if they have the same base type and pointer depth
+        // Since this compiler only has INT base type, all INT-derived types must match in pointer depth
         return (this.baseType.equals(t.getBaseType()) && this.getEffectivePointerDepth() == t.getEffectivePointerDepth());
     }
 

@@ -1,10 +1,16 @@
 #include "io.c"
-
-int rslt[16];
+#include "atoi.c"
 
 void main() {
     int i;
-    for(i = 0; i < 16; i = i + 1) {
+    int n;
+    int buff[80];
+
+    puts("Enter a number:");
+    gets(buff);
+    n = atoi(buff);
+    putn(n);
+    for(i = 0; i < n; i = i + 1) {
         putn(fib(i));
     }
 }

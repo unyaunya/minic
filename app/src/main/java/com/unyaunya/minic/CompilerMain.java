@@ -27,7 +27,7 @@ public class CompilerMain {
     private Logger logger = Logger.getLogger(getClass().getName());    
     
     public String compile(String path) throws MinicException {
-        return compile(Paths.get(path));
+        return compile(Paths.get(path.trim()));
     }
 
     public String compile(Path path) throws MinicException {
@@ -54,11 +54,12 @@ public class CompilerMain {
     }
 
      public void run(String[] args) throws MinicException {
+        System.out.println(System.getProperty("user.dir"));
         if (args.length < 1) {
             logger.severe("Usage: minic <source.mc>");
             System.exit(1);
         }
-        String asm = this.compile(args[0]);
+        String asm = this.compile(args[0].trim());
         if (args.length > 1) {
             String filePath = args[1];
             try (FileWriter writer = new FileWriter(filePath)) {

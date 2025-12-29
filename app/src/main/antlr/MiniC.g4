@@ -126,15 +126,19 @@ macroStmt
 // ----------------------
 // Expressions
 // ----------------------
+// Ordered alternatives define precedence (higher precedence listed first)
 expr
-    : expr op=('*'|'/') expr             #mulDiv
+    : '(' typeSpec ')' expr              #cast
+    | '-' expr                           #unaryNeg
+    | '!' expr                           #logicalNot
+    | '*' expr                           #deref
+    | '&' IDENT                          #addressOf
+    | expr op=('*'|'/') expr             #mulDiv
     | expr op=('+'|'-') expr             #addSub
     | expr op=('<'|'>'|'<='|'>='|'=='|'!=') expr  #compare
+    | expr op='&&' expr                  #logicalAnd
+    | expr op='||' expr                  #logicalOr
     | '(' expr ')'                       #paren
-    | '-' expr                           #unaryNeg
-    | '&' IDENT                          #addressOf
-    | '*' expr                           #deref
-    | '(' typeSpec ')' expr              #cast
     | IDENT '[' expr ']'                 #arrayAccess
     | IDENT '(' (expr (',' expr)*)? ')'  #funcCall
     | IDENT                              #varRef
