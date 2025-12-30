@@ -18,4 +18,13 @@ public class ForStmt extends StmtNode {
         this.update = update;
         this.body = body;
     }
+    
+    @Override
+    public String toString() {
+        return String.format("for (%s; %s; %s)",
+                init != null ? init.toString() : "",
+                cond != null ? cond.toString() : "",
+                update != null ? update.toString() : ""
+                );
+    }
 }

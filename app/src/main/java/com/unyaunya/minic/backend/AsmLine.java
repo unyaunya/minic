@@ -46,7 +46,7 @@ class AsmLine {
     }
 
     public void setComment(String comment) {
-        this.comment = (comment != null && comment.length() > 24) ? comment.substring(0, 24) : comment;
+        this.comment = comment;
     }
 
     @Override
@@ -55,14 +55,18 @@ class AsmLine {
 
         // Pure comment line: no opcode and no operands
         if ((opcode.isEmpty()) && ops.isEmpty()) {
-            return (comment != null ? "; " + comment : "") + System.lineSeparator();
+            if (comment != null) {
+                return String.format("; %s%n", comment);
+            } else {
+                return String.format("%n");
+            }
+        } else {
+            // CASL2 columns: label(8), space, opcode(6), space, operands(24), comment
+            return String.format("%-8s %-6s %-24s%s%n",
+                    label != null ? label : "",
+                    opcode,
+                    ops,
+                    (comment != null && !comment.isEmpty()) ? "; " + comment : "");
         }
-
-        // CASL2 columns: label(8), space, opcode(6), space, operands(24), comment
-        return String.format("%-8s %-6s %-24s%s%n",
-                label != null ? label : "",
-                opcode,
-                ops,
-                (comment != null && !comment.isEmpty()) ? "; " + comment : "");
     }
 }

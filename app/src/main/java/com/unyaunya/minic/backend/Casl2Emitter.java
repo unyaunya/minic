@@ -45,6 +45,7 @@ public class Casl2Emitter {
         emitGlobals(program.getGlobals());
         builder.comment("Data Section End");
         if (hasMain) {
+            builder.comment("Initialize stack and call main()");
             builder.lad(GR1, stackSize).l("ENTRY").c("Put stacksize to GR1");
             builder.lad(GR7, "STACK", GR1).c("GR7 plays a role of ESP in x86");
             builder.ld(GR6, GR7).c("GR6 plays a role of EBP in x86");
@@ -55,7 +56,7 @@ public class Casl2Emitter {
             emitFunction(f);
         }
         if (hasMain) {
-            builder.ds(stackSize).l("STACK").c("Stack Ares");
+            builder.ds(stackSize).l("STACK").c("Stack Area");
         }
         builder.end().c("Program end");
         return builder.build();
@@ -76,6 +77,7 @@ public class Casl2Emitter {
     private void emitFunction(FunctionDecl f) {
         this.currentFunction = f;
         builder.comment(f.toString());
+        builder.comment("Function entry");
         builder.suba(GR7, 1).l(f.getName().toUpperCase());
         builder.st(GR6, "0", GR7).c("Like push ebp");
         builder.ld(GR6, GR7).c("Like mov ebp, esp");
@@ -92,6 +94,7 @@ public class Casl2Emitter {
 
     private void emitReturn() {
         int localSize = this.semanticInfo.getLocalSize(this.currentFunction.getName());
+        builder.comment("Function return");
         if (localSize > 0) {
             builder.adda(GR7, localSize);
         }
@@ -105,6 +108,7 @@ public class Casl2Emitter {
         builder.comment("%s(%s);", c.getName(), String.join(",", c.getArgs().stream().map(Object::toString).toList()));
         // Push arguments in reverse order
         for (Expr arg : c.getArgs().reversed()) {
+            builder.comment("Push %s", arg);
             emitExpr(arg); // result in GR1
             builder.suba(GR7, 1).c("Decrement stack pointer");
             builder.st(GR1, "0", GR7);
@@ -113,9 +117,10 @@ public class Casl2Emitter {
         builder.call(c.getName().toUpperCase());
         // Release arguments
         if (!c.getArgs().isEmpty()) {
+            builder.comment("Release arguments");
             builder.adda(GR7, c.getArgs().size());
         }
-        // Move return value to GR1
+        builder.comment("Move return value to GR1");
         builder.ld(GR1, GR0);
     }
 
@@ -157,6 +162,8 @@ public class Casl2Emitter {
         emitExpr(expr);
         // evacuate the value to assign
         builder.push("0", GR1).c("Push rvalue");
+
+        builder.comment("%s=", lvalue.toString());
         // calculate the address to store
         emitLValueAddress(lvalue);
         // put the value to assign in GR1
@@ -264,6 +271,7 @@ public class Casl2Emitter {
             }
             case UnaryNeg u -> {
                 emitExpr(u.getExpr());
+                builder.comment("-");
                 builder.xor(GR0, GR0);
                 builder.suba(GR0, GR1);
                 builder.ld(GR1, GR0);
@@ -298,6 +306,7 @@ public class Casl2Emitter {
         emitExpr(bin.getRight());
         builder.push("0", GR1);
         emitExpr(bin.getLeft());
+        builder.comment(bin.getOp().toString());
         builder.pop(GR2);
         switch (bin.getOp()) {
         case ADD -> builder.adda(GR1, GR2);
@@ -353,6 +362,7 @@ public class Casl2Emitter {
         emitExpr(n.getExpr());
         String trueLbl = lgCompareTrue.getNewLabel();
         String endLbl = lgCompareEnd.getNewLabel();
+        builder.comment("!");
         builder.xor(GR0, GR0).c("GR0=0");
         builder.cpa(GR1, GR0).c("test GR1==0");
         builder.jze(trueLbl);
@@ -372,6 +382,7 @@ public class Casl2Emitter {
             builder.jze(elseLabel);
             emitBlock(i.getThenBlock());
             builder.jump(endLabel);
+            builder.comment("else");
             builder.nop().l(elseLabel);
             emitBlock(i.getElseBlock());
         } else {
@@ -379,6 +390,7 @@ public class Casl2Emitter {
             emitBlock(i.getThenBlock());
         }
         builder.nop().l(endLabel);
+        builder.comment("end of if");
     }
 
     private void emitWhile(WhileStmt w) {
@@ -386,17 +398,20 @@ public class Casl2Emitter {
         String endLabel = lgWend.getNewLabel();
         builder.comment(w.toString());
         builder.nop().l(startLabel);
-        builder.comment(w.getCond().toString());
         emitExpr(w.getCond());
+        builder.comment("Test while condition");
         builder.jze(endLabel);
         emitBlock(w.getBody());
+        builder.comment("Back to the start of while loop");
         builder.jump(startLabel);
         builder.nop().l(endLabel);
+        builder.comment("end of while");
     }
 
     private void emitFor(ForStmt f) {
         String startLabel = lgFor.getNewLabel();
         String endLabel = lgNext.getNewLabel();
+        builder.comment(f.toString());
         if (f.getInit() != null) emitStmt(f.getInit());
         builder.nop().l(startLabel);
         if (f.getCond() != null) {
@@ -407,13 +422,14 @@ public class Casl2Emitter {
         if (f.getUpdate() != null) emitStmt(f.getUpdate());
         builder.jump(startLabel);
         builder.nop().l(endLabel);
+        builder.comment("end of for");
     }
 
     private void emitReturn(ReturnStmt r) {
         builder.comment(r.toString());      
         if (r.getValue() != null) {
             emitExpr(r.getValue());
-            builder.ld(GR0, GR1);
+            builder.ld(GR0, GR1).c("Move return value to GR0");
         }
         emitReturn();
     }
